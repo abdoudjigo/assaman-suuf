@@ -22,4 +22,11 @@ jobs:
         run: python -m flake8 . --max-line-length=100
 
       - name: Lancer les tests
-        run: python -m pytest tests/ -v
+        run: |
+          pytest tests/ -v
+          code=$?
+          if [ $code -eq 5 ]; then
+            echo "Aucun test collecté pour l'instant, on laisse passer."
+            exit 0
+          fi
+          exit $code
