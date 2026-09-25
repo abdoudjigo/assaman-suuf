@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+pandas
+sqlalchemy
+psycopg2-binary
+pymongo
+kafka-python
+dbt-core
+dbt-snowflake
+snowflake-connector-python
+scikit-learn
+xgboost
+pytest
+flake8
+python-dotenv
