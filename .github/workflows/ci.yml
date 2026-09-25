@@ -77,7 +77,7 @@ jobs:
           pytest tests/ -v
           code=$?
           if [ $code -eq 5 ]; then
-            echo "Aucun test collecté pour l'instant, on laisse passer."
+            echo "Aucun test collectén,on peut laisse passer pour l'instant"
             exit 0
           fi
           exit $code
