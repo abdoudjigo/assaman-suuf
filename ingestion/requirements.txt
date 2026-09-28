@@ -1,0 +1,9 @@
+pandas
+sqlalchemy
+psycopg2-binary
+pymongo
+kafka-python
+snowflake-connector-python
+python-dotenv
+pytest
+pytest-cov
