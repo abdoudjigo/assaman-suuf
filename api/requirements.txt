@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+httpx
+pandas
+snowflake-connector-python
+python-dotenv
+pytest
+pytest-cov
