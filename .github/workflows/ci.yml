@@ -212,9 +212,9 @@ jobs:
           docker push ghcr.io/abdoudjigo/assaman-suuf-ml:${{ github.sha }}
           docker push ghcr.io/abdoudjigo/assaman-suuf-ml:latest
 
-      # 🔜 Étape suivante (environnement Dev réel non encore provisionné) :
-      # - SSH vers le serveur Dev + docker compose pull && up -d
-      # - ou déploiement vers un service cloud (Render, Railway, VM Orange...)
+      # Étape suivante (environnement Dev réel non encore provisionné) :
+      # SSH vers le serveur Dev + docker compose pull && up -d
+      # ou déploiement vers un service cloud (Render, Railway, VM Orange...)
 
   # ---------------------------------------------------------------------
   # 8. Statut final
