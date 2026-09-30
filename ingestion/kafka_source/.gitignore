@@ -3,9 +3,7 @@ snowflake_kafka.p8
 snowflake_kafka.pub
 
 /*.properties
-
-/plugins/snowflake-kafka-connector/snowflake-kafka-connector.jar
-/plugins/snowflake-kafka-connector.jar
+plugins/*.jar
 
 # Python
 __pycache__/
