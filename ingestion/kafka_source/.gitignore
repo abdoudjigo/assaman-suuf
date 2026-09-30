@@ -4,6 +4,8 @@ snowflake_kafka.pub
 
 snowflake_connector_agriculture.properties
 
+plugins/*.jar
+
 # Python
 __pycache__/
 *.pyc
