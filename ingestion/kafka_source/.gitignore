@@ -2,7 +2,7 @@
 snowflake_kafka.p8
 snowflake_kafka.pub
 
-snowflake_connector_agriculture.properties
+/*.properties
 
 plugins/*.jar
 
