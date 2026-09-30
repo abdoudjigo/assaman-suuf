@@ -3,6 +3,7 @@ snowflake_kafka.p8
 snowflake_kafka.pub
 
 /*.properties
+
 plugins/*.jar
 
 # Python
