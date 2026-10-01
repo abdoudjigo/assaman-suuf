@@ -11,3 +11,6 @@ data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 ml/models/*.pkl
+ingestion/.venv/
+*.duckdb
+
