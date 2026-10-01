@@ -1,15 +1,20 @@
 import dlt
+import os
 import psycopg2
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 
 def agriculture_production():
     connexion = psycopg2.connect(
-        host="localhost",
-        port="5432",
-        database="dataflow360_source_2",
-        user="postgres",
-        password="nkm"
-    )
+        host=os.getenv("POSTGRES_HOST"),
+        port=os.getenv("POSTGRES_PORT"),
+        database=os.getenv("POSTGRES_DATABASE"),
+        user=os.getenv("POSTGRES_USER"),
+        password=os.getenv("POSTGRES_PASSWORD")
+)
 
     try:
         curseur = connexion.cursor()
@@ -54,15 +59,15 @@ def agriculture_production():
 
 
 pipeline = dlt.pipeline(
-    pipeline_name="postgres_agriculture",
-    destination="duckdb",
-    dataset_name="agriculture_data"
+    pipeline_name="postgres_agriculture_snowflake",
+    destination="snowflake",
+    dataset_name=os.getenv("SNOWFLAKE_SCHEMA", "RAW")
 )
 
 
 load_info = pipeline.run(
     agriculture_production(),
-    table_name="agriculture_production",
+    table_name="raw_postgres_agriculture",
     write_disposition="replace"
 )
 
