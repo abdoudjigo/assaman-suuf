@@ -1,0 +1,110 @@
+version: 7.28.2
+
+type: DeclarativeSource
+
+check:
+  type: CheckStream
+  stream_names:
+    - observations_climatique
+
+streams:
+  - type: DeclarativeStream
+    name: observations_climatique
+    retriever:
+      type: SimpleRetriever
+      decoder:
+        type: JsonDecoder
+      paginator:
+        type: DefaultPaginator
+        page_size_option:
+          type: RequestOption
+          field_name: page_size
+          inject_into: request_parameter
+        page_token_option:
+          type: RequestPath
+        pagination_strategy:
+          type: CursorPagination
+          page_size: 200
+          cursor_value: "{{ response['next'] }}"
+          stop_condition: "{{ response['next'] is none }}"
+      requester:
+        type: HttpRequester
+        url: https://galsenapi.lassanasiby.com/api/v1/climat/observations/
+        http_method: GET
+        request_parameters:
+          annee_max: "2015"
+          annee_min: "1960"
+      record_selector:
+        type: RecordSelector
+        extractor:
+          type: DpathExtractor
+          field_path:
+            - results
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        type: object
+        $schema: http://json-schema.org/schema#
+        properties:
+          id:
+            type:
+              - number
+              - "null"
+          mois:
+            type:
+              - number
+              - "null"
+          tavg:
+            type:
+              - string
+              - "null"
+          tmax:
+            type:
+              - string
+              - "null"
+          tmin:
+            type:
+              - string
+              - "null"
+          annee:
+            type:
+              - number
+              - "null"
+          prcp_mm:
+            type:
+              - string
+              - "null"
+          station:
+            type:
+              - string
+              - "null"
+          nb_jours:
+            type:
+              - number
+              - "null"
+          station_nom:
+            type:
+              - string
+              - "null"
+        additionalProperties: true
+
+spec:
+  type: Spec
+  connection_specification:
+    type: object
+    properties: {}
+
+metadata:
+  testedStreams:
+    stream_0:
+      streamHash: ad11f9fa446b445a056b0f48d54e74059e0bc977
+    observations_climatique:
+      isStale: false
+      hasRecords: true
+      streamHash: 52bc0749391c1c846c988b48c858c5f9ffa80d56
+      hasResponse: true
+      primaryKeysAreUnique: true
+      primaryKeysArePresent: true
+      responsesAreSuccessful: true
+  autoImportSchema:
+    observations_climatique: true
