@@ -13,4 +13,8 @@ data/processed/*
 ml/models/*.pkl
 ingestion/.venv/
 *.duckdb
-
+# Airflow
+orchestration/.env
+orchestration/logs/
+orchestration/config/
+orchestration/plugins/
