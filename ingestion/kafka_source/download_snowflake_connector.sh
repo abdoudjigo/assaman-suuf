@@ -1,14 +1,15 @@
 #!/bin/bash
-# Télécharge le plugin Snowflake Kafka Connector dans ingestion/kafka_source/plugins/.
-# Ce .jar (~147 Mo) n'est volontairement pas versionné dans Git (voir .gitignore) :
-# chaque personne le télécharge une fois via ce script.
+# Télécharge le plugin Snowflake Kafka Connector dans son propre sous-dossier.
+# IMPORTANT : le plugin doit être isolé dans un sous-dossier dédié (pas directement
+# dans plugins/), sinon Kafka Connect ne l'isole pas correctement et on obtient
+# un conflit de classpath avec kafka-clients (NoSuchMethodError au démarrage).
 #
 # Usage : ./download_snowflake_connector.sh
 
 set -e
 
 CONNECTOR_VERSION="2.4.1"
-PLUGIN_DIR="$(dirname "$0")/plugins"
+PLUGIN_DIR="$(dirname "$0")/plugins/snowflake-kafka-connector"
 JAR_NAME="snowflake-kafka-connector-${CONNECTOR_VERSION}.jar"
 URL="https://repo1.maven.org/maven2/com/snowflake/snowflake-kafka-connector/${CONNECTOR_VERSION}/${JAR_NAME}"
 
