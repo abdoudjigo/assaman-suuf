@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🌾 Assaman & Suuf
+# Assaman & Suuf
 
 ### *« Ciel & Terre »* — Agroclimatologie & Aide à la décision agricole au Sénégal
 
@@ -12,41 +12,41 @@
 [![Power BI](https://img.shields.io/badge/Power%20BI-Dashboard-F2C811?logo=powerbi&logoColor=black)](https://powerbi.microsoft.com/)
 [![React](https://img.shields.io/badge/React-App-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![Scrum](https://img.shields.io/badge/Méthodologie-Scrum-6DB33F)](#)
-[![License](https://img.shields.io/badge/License-MIT-lightgrey)](#-licence)
-[![Status](https://img.shields.io/badge/Statut-Sprint%201%20en%20cours-orange)](#-méthodologie)
+[![License](https://img.shields.io/badge/License-MIT-lightgrey)](#licence)
+[![Status](https://img.shields.io/badge/Statut-Sprint%201%20·%20US17%20en%20cours-orange)](#méthodologie)
 
 </div>
 
 ---
 
-## 📖 Sommaire
+## Sommaire
 
-- [À propos](#-à-propos)
-- [Objectifs](#-objectifs)
-- [Architecture](#-architecture)
-- [Stack technique](#-stack-technique)
-- [Livrables](#-livrables)
-- [Méthodologie](#-méthodologie)
-- [Démarrage rapide](#-démarrage-rapide)
-- [Structure du projet](#-structure-du-projet)
-- [Stratégie de branches & contribution](#-stratégie-de-branches--contribution)
-- [Équipe](#-équipe)
-- [Licence](#-licence)
+- [À propos](#à-propos)
+- [Objectifs](#objectifs)
+- [Architecture](#architecture)
+- [Stack technique](#stack-technique)
+- [Livrables](#livrables)
+- [Méthodologie](#méthodologie)
+- [Démarrage rapide](#démarrage-rapide)
+- [Structure du projet](#structure-du-projet)
+- [Stratégie de branches & contribution](#stratégie-de-branches--contribution)
+- [Équipe](#équipe)
+- [Licence](#licence)
 
 ---
 
-## 🌍 À propos
+## À propos
 
 **Assaman & Suuf** — *le ciel et la terre*, en wolof — est un projet d'agroclimatologie qui croise données climatiques et données agricoles pour mieux comprendre comment le ciel façonne les rendements de la terre, au Sénégal.
 
 Le projet vise à :
-- 🔍 Identifier les **anomalies climatiques** et suivre leur évolution dans le temps
-- 🌱 Analyser leur **relation avec les rendements agricoles**
-- 📊 Fournir des **éléments concrets d'aide à la décision** aux acteurs agricoles
+- Identifier les **anomalies climatiques** et suivre leur évolution dans le temps
+- Analyser leur **relation avec les rendements agricoles**
+- Fournir des **éléments concrets d'aide à la décision** aux acteurs agricoles
 
 Les sources de données mobilisées sont volontairement hétérogènes — formats, fréquences, niveaux géographiques et granularités différents — ce qui impose une architecture pensée pour absorber cette diversité avant toute analyse.
 
-## 🎯 Objectifs
+## Objectifs
 
 | Objectif | Description |
 |---|---|
@@ -55,7 +55,7 @@ Les sources de données mobilisées sont volontairement hétérogènes — forma
 | Prédire | Estimer le rendement d'une culture à partir de facteurs climatiques |
 | Décider | Donner aux acteurs agricoles une vision claire par région et par culture |
 
-## 🏗️ Architecture
+## Architecture
 
 ```mermaid
 flowchart TD
@@ -69,10 +69,10 @@ flowchart TD
     N --> INB
     K --> INS[Ingestion Streaming]
 
-    INB --> ORCH["🌀 Apache Airflow<br/>orchestre tout le pipeline"]
+    INB --> ORCH["Apache Airflow<br/>orchestre tout le pipeline"]
     INS --> ORCH
 
-    ORCH --> SF[("❄️ Snowflake<br/>DWH")]
+    ORCH --> SF[("Snowflake<br/>DWH")]
 
     SF --> DBT["dbt + SQL<br/>staging · nettoyage · harmonisation<br/>modélisation (dimensions/faits, modèles analytiques)"]
 
@@ -104,7 +104,7 @@ flowchart TD
     class BI,API,ML,PBI,DASH,FA,REDIS,MOD,RJS layer
 ```
 
-## 🛠️ Stack technique
+## Stack technique
 
 | Couche | Outils |
 |---|---|
@@ -115,17 +115,18 @@ flowchart TD
 | **API** | FastAPI, Swagger, Redis (cache) |
 | **Machine Learning** | XGBoost, Random Forest |
 | **Frontend** | React JS |
+| **CI/CD** | GitHub Actions (lint, tests, build, déploiement Docker vers GHCR) |
 | **Gestion de projet** | Scrum, Trello |
 | **Versioning** | Git / GitHub |
 
-## 📦 Livrables
+## Livrables
 
-- 📊 **Dashboard Power BI** alimenté par Snowflake, avec carte interactive et filtres géographiques
-- 🔌 **API FastAPI** documentée via Swagger
-- 🤖 **Modèle de prédiction des rendements**, exposé dans une interface applicative
-- 🗺️ **Carte interactive** intégrée au dashboard
+- **Dashboard Power BI** alimenté par Snowflake, avec carte interactive et filtres géographiques
+- **API FastAPI** documentée via Swagger
+- **Modèle de prédiction des rendements**, exposé dans une interface applicative
+- **Carte interactive** intégrée au dashboard
 
-## 🔁 Méthodologie
+## Méthodologie
 
 Le projet est piloté en **Scrum**, avec un board Trello organisé par étiquettes :
 
@@ -139,70 +140,98 @@ Le projet est piloté en **Scrum**, avec un board Trello organisé par étiquett
 | Technique | US14 Git/GitHub · US15 CI/CD |
 | Données | US16 Récupération · US17 Préparation |
 
-### ✅ Checklist — Sprint 1
+```mermaid
+flowchart LR
+    US14["US14<br/>Git/GitHub"] --> US01["US01<br/>Dashboard"]
+    US01 --> US04["US04<br/>API"]
+    US04 --> US07["US07<br/>Prédiction"]
+    US07 --> US11["US11<br/>Cartographie"]
+    US11 --> US15["US15<br/>CI/CD"]
+    US15 --> US16["US16<br/>Récupération données"]
+    US16 --> US17["US17<br/>Préparation données"]
 
-- [ ] US14 — Mettre en place le dépôt Git/GitHub
-- [ ] US01 — Définir les besoins du Dashboard
-- [ ] US04 — Définir les besoins des API
-- [ ] US07 — Définir le problème de prédiction
-- [ ] US11 — Définir les besoins cartographiques
-- [ ] US15 — Mettre en place le CI/CD
-- [ ] US16 — Récupération des données
-- [ ] US17 — Préparation des données
+    classDef fait fill:#DCFCE7,stroke:#15803D,color:#14532D
+    classDef cours fill:#FEF3C7,stroke:#B45309,color:#78350F,stroke-width:2px
+    class US14,US01,US04,US07,US11,US15,US16 fait
+    class US17 cours
+```
 
-## 🚀 Démarrage rapide
+### Checklist — Sprint 1
+
+- [x] US14 — Mettre en place le dépôt Git/GitHub
+- [x] US01 — Définir les besoins du Dashboard
+- [x] US04 — Définir les besoins des API
+- [x] US07 — Définir le problème de prédiction
+- [x] US11 — Définir les besoins cartographiques
+- [x] US15 — Mettre en place le CI/CD
+- [x] US16 — Récupération des données
+- [ ] US17 — Préparation des données *(en cours)*
+
+## Démarrage rapide
 
 ```bash
 # 1. Cloner le repo
-git clone https://github.com/<org>/assaman-suuf.git
+git clone https://github.com/abdoudjigo/assaman-suuf.git
 cd assaman-suuf
 
 # 2. Créer l'environnement virtuel
 python -m venv venv
 source venv/bin/activate
 
-# 3. Installer les dépendances
-pip install -r requirements.txt
+# 3. Installer les dépendances (un requirements.txt par composant)
+pip install -r api/requirements.txt
+pip install -r ingestion/requirements.txt
+pip install -r ml/requirements.txt
 
 # 4. Copier le fichier d'environnement
 cp .env.example .env
 # → renseigner les identifiants Snowflake, PostgreSQL, MongoDB, Kafka
 ```
 
-## 📁 Structure du projet
+## Structure du projet
 
-```
+```text
 assaman-suuf/
-├── ingestion/          # Scripts d'ingestion par source (API, PostgreSQL, MongoDB, Kafka)
-├── dbt_project/        # Modèles dbt (staging, intermediate, marts)
-├── api/                # Application FastAPI
-├── ml/                 # Entraînement et sérialisation des modèles
-├── dashboard/          # Fichiers Power BI (.pbix) et documentation DAX
-├── docs/                # Documentation du projet
+├── .github/workflows/ci.yml   # pipeline CI/CD (lint, tests, build, deploy)
+├── ingestion/                 # scripts d'ingestion par source (API, PostgreSQL, MongoDB, Kafka)
+│   └── requirements.txt
+├── orchestration/dags/        # DAGs Apache Airflow
+├── dbt_project/                # modèles dbt (staging, intermediate, marts)
+├── api/                        # application FastAPI
+│   └── requirements.txt
+├── ml/                         # entraînement et sérialisation des modèles
+│   └── requirements.txt
+├── dashboard/                  # fichiers Power BI (.pbix) et documentation DAX
+├── data/{raw,processed}/       # jamais versionné
+├── tests/{test_ingestion,test_api,test_ml}/
+├── docs/                        # documentation du projet (US01, US04, US07, US11, US14...)
+├── .env.example
 ├── .gitignore
-├── requirements.txt
+├── requirements.txt            # racine, dépréciée au profit des requirements par composant
 └── README.md
 ```
 
-## 🌿 Stratégie de branches & contribution
+> Décision d'équipe : les dépendances Python sont décentralisées en un `requirements.txt` par composant (`api/`, `ingestion/`, `ml/`) plutôt qu'un seul fichier à la racine, pour isoler les environnements de chaque brique du pipeline.
+
+## Stratégie de branches & contribution
 
 - **`main`** — version stable, protégée, jamais de push direct
 - **`develop`** — branche d'intégration, protégée, jamais de push direct
-- **`feature/nom-de-la-tache`** — une branche par tâche, créée depuis `develop`
+- **`dev/<prénom>`** — branche perso par membre (`dev/djigo`, `dev/khady`, `dev/aby`, `dev/niass`, `dev/anthony`), créée depuis `develop`
 
 ```bash
 git checkout develop
 git pull
-git checkout -b feature/ma-tache
+git checkout -b dev/<prenom>
 # ... travail, commits ...
-git push -u origin feature/ma-tache
-# → ouvrir une Pull Request vers develop, faire valider par un·e coéquipier·ère
+git push -u origin dev/<prenom>
+# → ouvrir une Pull Request vers develop, faire valider par Djigo (intégrateur)
 ```
 
-**Convention de commits** : `feat:`, `fix:`, `docs:`, `refactor:`, `test:`
-**Règle de PR** : toute Pull Request doit être revue et approuvée par au moins une autre personne avant merge.
+**Convention de commits** : `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`
+**Règle de PR** : toute Pull Request doit passer la CI (lint, tests) et être approuvée avant merge.
 
-## 👥 Équipe
+## Équipe
 
 | Membre | Rôle | LinkedIn |
 | :--- | :--- | :--- |
@@ -214,7 +243,7 @@ git push -u origin feature/ma-tache
 
 *Projet réalisé dans le cadre du programme Dev Data P8 — Sonatel Académie / Orange Digital Center, Dakar.*
 
-## 📄 Licence
+## Licence
 
 Ce projet est distribué sous licence MIT — voir le fichier [`LICENSE`](LICENSE) pour plus de détails.
 
@@ -222,6 +251,6 @@ Ce projet est distribué sous licence MIT — voir le fichier [`LICENSE`](LICENS
 
 <div align="center">
 
-*Du ciel à la terre, des données à la décision.* 🌾
+*Du ciel à la terre, des données à la décision.*
 
 </div>
