@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: raw
+    database: DATAFLOW360
+    schema: RAW
+    tables:
+      - name: raw_airbyte_climat
+      - name: raw_kafka_agriculture
+      - name: raw_mongo_agriculture
+      - name: raw_postgres_agriculture

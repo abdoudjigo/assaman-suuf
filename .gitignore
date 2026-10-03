@@ -17,4 +17,7 @@ ingestion/.venv/
 orchestration/.env
 orchestration/logs/
 orchestration/config/
-orchestration/plugins/
+orchestration/plugins/dbt_venv/
+dbt_venv/
+dbt_project/logs/
+dbt_project/target/
