@@ -10,3 +10,11 @@ models:
   dataflow360:
     staging:
       +materialized: view
+
+    intermediate:
+      +schema: INTERMEDIATE
+      +materialized: view
+
+    marts:
+      +schema: MARTS
+      +materialized: table
