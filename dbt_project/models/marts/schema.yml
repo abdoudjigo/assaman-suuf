@@ -1,0 +1,75 @@
+version: 2
+
+models:
+  # --- Dimensions : la clé surrogate doit être unique et non nulle ---
+  - name: dim_zone
+    columns:
+      - name: zone_key
+        tests:
+          - not_null
+          - unique
+
+  - name: dim_produit
+    columns:
+      - name: produit_key
+        tests:
+          - not_null
+          - unique
+
+  - name: dim_annee
+    columns:
+      - name: annee_key
+        tests:
+          - not_null
+          - unique
+
+  - name: dim_station
+    columns:
+      - name: station_key
+        tests:
+          - not_null
+          - unique
+
+  # --- Tables de faits : clés étrangères obligatoires, mesures NON testées en not_null
+  #     (NULL = valeur réellement inconnue dans la source, cf. EDA : 16 superficies,
+  #     69 productions, 85 rendements manquants — ne pas masquer ce signal)
+  - name: fct_agriculture
+    columns:
+      - name: zone_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_zone')
+              arguments:
+                field: zone_key
+      - name: produit_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_produit')
+              arguments:
+                field: produit_key
+      - name: annee_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_annee')
+              arguments:
+                field: annee_key
+
+  - name: fct_climat
+    columns:
+      - name: station_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_station')
+              arguments:
+                field: station_key
+      - name: annee_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_annee')
+              arguments:
+                field: annee_key
