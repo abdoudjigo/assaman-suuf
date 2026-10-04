@@ -1,0 +1,57 @@
+version: 2
+
+models:
+  - name: stg_climat
+    columns:
+      - name: id
+        tests:
+          - not_null
+          - unique
+      - name: annee
+        tests:
+          - not_null
+
+  - name: stg_postgres_agriculture
+    columns:
+      - name: fnid
+        tests:
+          - not_null
+      - name: produit
+        tests:
+          - not_null
+      - name: systeme_production
+        tests:
+          - accepted_values:
+              values: ['Pluvial', 'Irrigué', 'Décrue (PS)']
+              config:
+                severity: warn
+
+  - name: stg_mongo_agriculture
+    columns:
+      - name: fnid
+        tests:
+          - not_null
+      - name: produit
+        tests:
+          - not_null
+      - name: systeme_production
+        tests:
+          - accepted_values:
+              values: ['Pluvial', 'Irrigué', 'Décrue (PS)']
+              config:
+                severity: warn
+
+  - name: stg_kafka_agriculture
+    columns:
+      - name: fnid
+        tests:
+          - not_null
+      - name: produit
+        tests:
+          - not_null
+      - name: systeme_production
+        tests:
+          - accepted_values:
+              values: ['Pluvial', 'Irrigué', 'Décrue (PS)']
+              config:
+                severity: warn
