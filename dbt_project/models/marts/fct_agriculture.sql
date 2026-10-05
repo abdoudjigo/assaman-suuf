@@ -1,3 +1,7 @@
+-- Fait agricole :
+-- une ligne représente une observation / campagne agricole.
+-- Les mois de semis et de récolte décrivent la campagne.
+
 SELECT
     MD5(
         CONCAT_WS('|',
@@ -17,9 +21,8 @@ SELECT
         )
     ) AS observation_id,
 
-    MD5(fnid) AS zone_key,
+    MD5(fnid) AS geographie_key,
     MD5(produit) AS produit_key,
-    annee_reference AS annee_key,
 
     fnid,
     saison,
