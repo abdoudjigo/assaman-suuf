@@ -1,3 +1,7 @@
+-- Fait climatique :
+-- une ligne représente une station pour une année et un mois.
+-- La clé date_key permet de relier l'observation à la dimension temps.
+
 SELECT
     MD5(
         CONCAT_WS('|',
@@ -9,8 +13,9 @@ SELECT
     ) AS observation_id,
 
     MD5(station) AS station_key,
-    annee AS annee_key,
-    mois,
+
+    (annee * 100 + mois) AS date_key,
+
     tavg,
     tmin,
     tmax,

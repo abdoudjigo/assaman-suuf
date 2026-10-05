@@ -7,10 +7,13 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['POSTGRES', 'MONGO', 'KAFKA']
+              arguments:
+                values: ['POSTGRES', 'MONGO', 'KAFKA']
+
       - name: annee_reference
         tests:
           - not_null
+
       - name: produit
         tests:
           - not_null

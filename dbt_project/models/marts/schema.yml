@@ -1,14 +1,17 @@
 version: 2
 
 models:
-  # --- Dimensions : la clé surrogate doit être unique et non nulle ---
-  - name: dim_zone
+
+  # Une ligne représente une géographie : FNID, département et région.
+  - name: dim_geographie
     columns:
-      - name: zone_key
+      - name: geographie_key
         tests:
           - not_null
           - unique
 
+
+  # Une ligne représente un produit agricole.
   - name: dim_produit
     columns:
       - name: produit_key
@@ -16,13 +19,17 @@ models:
           - not_null
           - unique
 
-  - name: dim_annee
+
+  # Une ligne représente un mois d'une année.
+  - name: dim_temps
     columns:
-      - name: annee_key
+      - name: date_key
         tests:
           - not_null
           - unique
 
+
+  # Une ligne représente une station météorologique.
   - name: dim_station
     columns:
       - name: station_key
@@ -30,46 +37,44 @@ models:
           - not_null
           - unique
 
-  # --- Tables de faits : clés étrangères obligatoires, mesures NON testées en not_null
-  #     (NULL = valeur réellement inconnue dans la source, cf. EDA : 16 superficies,
-  #     69 productions, 85 rendements manquants — ne pas masquer ce signal)
+
+  # Une ligne représente une observation / campagne agricole.
+  # Les mois de semis et de récolte décrivent la campagne,
+  # ils ne représentent pas une production mensuelle.
   - name: fct_agriculture
     columns:
-      - name: zone_key
+      - name: geographie_key
         tests:
           - not_null
           - relationships:
-              to: ref('dim_zone')
               arguments:
-                field: zone_key
+                to: ref('dim_geographie')
+                field: geographie_key
+
       - name: produit_key
         tests:
           - not_null
           - relationships:
-              to: ref('dim_produit')
               arguments:
+                to: ref('dim_produit')
                 field: produit_key
-      - name: annee_key
-        tests:
-          - not_null
-          - relationships:
-              to: ref('dim_annee')
-              arguments:
-                field: annee_key
 
+
+  # Une ligne représente une station pour une année et un mois.
   - name: fct_climat
     columns:
       - name: station_key
         tests:
           - not_null
           - relationships:
-              to: ref('dim_station')
               arguments:
+                to: ref('dim_station')
                 field: station_key
-      - name: annee_key
+
+      - name: date_key
         tests:
           - not_null
           - relationships:
-              to: ref('dim_annee')
               arguments:
-                field: annee_key
+                to: ref('dim_temps')
+                field: date_key

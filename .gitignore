@@ -21,3 +21,4 @@ orchestration/plugins/dbt_venv/
 dbt_venv/
 dbt_project/logs/
 dbt_project/target/
+logs/
