@@ -1,3 +1,4 @@
+# C'est le fichier de configuration du projet dbt.
 name: dataflow360
 version: '1.0.0'
 config-version: 2
