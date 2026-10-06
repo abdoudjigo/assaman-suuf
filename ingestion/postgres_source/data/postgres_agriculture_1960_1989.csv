@@ -1,4 +1,4 @@
-fnid,region,departement,produit,saison,annee_semis,mois_semis,annee_recolte,mois_recolte,systeme_production,indicateur_qualite,superficie_ha,production_t,rendement_t_ha
+ fnid,region,departement,produit,saison,annee_semis,mois_semis,annee_recolte,mois_recolte,systeme_production,indicateur_qualite,superficie_ha,production_t,rendement_t_ha
 SN2008A20103,Dakar,Rufisque,Niébé,Principale,1962,6,1962,11,None,0,4651.06067946904,1301.9730156284688,0.2799303439268611
 SN2008A20103,Dakar,Rufisque,Niébé,Principale,1963,6,1963,11,None,0,3536.722966248407,1437.6373889521194,0.4064885496183205
 SN2008A20103,Dakar,Rufisque,Niébé,Principale,1964,6,1964,11,None,0,3037.262089335464,1306.0226984142494,0.4299999999999999

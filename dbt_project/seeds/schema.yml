@@ -1,0 +1,30 @@
+version: 2
+
+seeds:
+
+  # Une ligne représente une région : liste de référence des régions.
+  - name: seed_regions
+    config:
+      column_types:
+        region: varchar
+    columns:
+      - name: region
+        tests:
+          - not_null
+          - unique
+
+  # Une ligne représente un produit agricole et sa catégorie.
+  - name: seed_produits
+    config:
+      column_types:
+        produit: varchar
+        categorie: varchar
+    columns:
+      - name: produit
+        tests:
+          - not_null
+          - unique
+
+      - name: categorie
+        tests:
+          - not_null

@@ -1,6 +1,6 @@
 # DataFlow360 — Modélisation dbt pour Power BI
 
-### Le modèle en étoile qui alimente le dashboard et la carte (US01, US11)
+### Le modèle en constellation qui alimente le dashboard et la carte (US01, US11)
 
 > **Statut : proposition de conception — pas encore implémentée.**
 > Ce document décrit les ajustements dbt et le modèle sémantique Power BI à construire au-dessus des marts existants, décrits dans [README_dbt_staging.md](README_dbt_staging.md).
@@ -23,9 +23,9 @@
 
 | Principe | Décision | Pourquoi |
 |---|---|---|
-| Forme du modèle | **Étoile** : des dimensions autour de faits | C'est la forme pour laquelle le moteur de Power BI et le DAX sont conçus : filtres simples, calculs rapides |
+| Forme du modèle | **Constellation** : des dimensions autour de faits | C'est la forme pour laquelle le moteur de Power BI et le DAX sont conçus : filtres simples, calculs rapides |
 | Ce qu'on importe | **Dimensions et faits**, pas les marts pré-agrégés | Un mart `région × année` ne peut plus être filtré par produit ou par saison. Le fait détaillé permet tous les croisements ; les agrégations se font en DAX. Les marts restent utiles pour l'API. |
-| Calculs | **Dans dbt** ce qui est figé (attributs, catégories, coordonnées) ; **en DAX** ce qui dépend des filtres (totaux, rendement pondéré, évolutions) | Une même règle n'est écrite qu'une fois, au bon endroit |
+| Calculs | **Dans dbt** ce qui est figé (attributs, catégories) ; **en DAX** ce qui dépend des filtres (totaux, rendement pondéré, évolutions) | Une même règle n'est écrite qu'une fois, au bon endroit |
 | Mode de stockage | **Import** | Volume faible (~10 000 campagnes, quelques milliers de relevés mensuels) : l'import est plus rapide et n'interroge pas Snowflake à chaque clic |
 | Nommage | Tables et colonnes renommées en français lisible dans Power BI, clés masquées | Le rapport est utilisé par des acteurs agricoles, pas par des développeurs |
 
@@ -65,9 +65,6 @@ erDiagram
     DIM_ZONE {
         string zone_key PK
         string region
-        string code_iso
-        float latitude
-        float longitude
     }
     DIM_STATION {
         string station_key PK
@@ -119,7 +116,7 @@ erDiagram
 | `fct_agroclimat_campagne` | **Nouveau** (marts) | Campagne + climat de la campagne. Conçu avec le ML, voir [README_modelisation_ml.md § 6](README_modelisation_ml.md#6-les-modèles-dbt-à-créer). Remplace `fct_agriculture` dans Power BI. |
 | `dim_annee` | **Nouveau** | Dimension partagée par les deux faits |
 | `dim_temps` | **Calendrier complet** + mois en français + hivernage | Aujourd'hui elle ne contient que les mois présents dans le climat : un mois sans relevé disparaît des axes au lieu d'apparaître vide |
-| `dim_zone` | + code ISO, latitude, longitude (seed) | Nécessaire pour la carte |
+| `dim_zone` | Région contrôlée par le seed `seed_regions` | Une région mal orthographiée serait mal placée sur la carte |
 | `dim_produit` | + catégorie (seed) | Segment « Céréales / Légumineuses / Cultures industrielles » |
 
 ### `dim_annee`
@@ -200,24 +197,24 @@ Dans Power BI, trier `nom_mois` par `mois` (*Trier par colonne*), sinon les mois
 Deux petits fichiers CSV versionnés dans `dbt_project/seeds/`, chargés par `dbt seed` :
 
 ```csv
-region,code_iso,latitude,longitude
-Dakar,SN-DK,14.69,-17.45
-Diourbel,SN-DB,14.65,-16.23
-Fatick,SN-FK,14.34,-16.41
-Kaffrine,SN-KA,14.11,-15.55
-Kaolack,SN-KL,14.15,-16.07
-Kedougou,SN-KE,12.56,-12.18
-Kolda,SN-KD,12.89,-14.94
-Louga,SN-LG,15.62,-16.22
-Matam,SN-MT,15.66,-13.26
-Saint-Louis,SN-SL,16.03,-16.49
-Sedhiou,SN-SE,12.71,-15.56
-Tambacounda,SN-TC,13.77,-13.67
-Thies,SN-TH,14.79,-16.93
-Ziguinchor,SN-ZG,12.56,-16.27
+region
+Dakar
+Diourbel
+Fatick
+Kaffrine
+Kaolack
+Kedougou
+Kolda
+Louga
+Matam
+Saint-Louis
+Sedhiou
+Tambacounda
+Thies
+Ziguinchor
 ```
 
-*`seeds/seed_regions.csv` — coordonnées du chef-lieu de région, à vérifier. La colonne `region` doit être écrite **exactement** comme dans les données agricoles : les noms sans accent ci-dessus correspondent à ceux déjà utilisés dans `dim_station` ; Fatick, Kaffrine et Sédhiou sont à contrôler avec `SELECT region FROM dim_zone`.*
+*`seeds/seed_regions.csv` — la liste de référence des 14 régions, écrite **exactement** comme dans les données agricoles (noms sans accent, comme dans `dim_station`). Le seed ne contient que la région : toutes les régions n'ont pas de station climatique, mais toutes ont des données agricoles, et c'est la région qui sert de clé commune.*
 
 ```csv
 produit,categorie
@@ -228,20 +225,15 @@ Mil,Céréales
 
 *`seeds/seed_produits.csv` — à compléter à partir de `SELECT produit FROM dim_produit`.*
 
-`dim_zone` et `dim_produit` les joignent en `LEFT JOIN`, avec un test `not_null` en `warn` sur `code_iso` et `categorie` : une région ou un produit mal orthographié dans le seed est signalé au lieu de disparaître de la carte.
+`dim_produit` joint `seed_produits` en `LEFT JOIN`, avec un test `not_null` en `warn` sur `categorie` : un produit absent du seed est signalé au lieu de disparaître du segment. `dim_zone` ne change pas ; un test `relationships` en `warn` vérifie que chacune de ses régions existe dans `seed_regions`.
 
 ```sql
 -- models/marts/dim_zone.sql
 SELECT DISTINCT
-    MD5(a.region) AS zone_key,
-    a.region,
-    r.code_iso,
-    r.latitude,
-    r.longitude
-FROM {{ ref('int_agriculture') }} AS a
-LEFT JOIN {{ ref('seed_regions') }} AS r
-    ON a.region = r.region
-WHERE a.region IS NOT NULL
+    MD5(region) AS zone_key,
+    region
+FROM {{ ref('int_agriculture') }}
+WHERE region IS NOT NULL
 ```
 
 ---
@@ -332,13 +324,13 @@ DIVIDE (
 | Page | Question à laquelle elle répond | Visuels | Mesures |
 |---|---|---|---|
 | **1. Vue d'ensemble** | Où en est la production nationale ? | Cartes KPI, courbe production et rendement par année, top produits | Production, Superficie, Rendement, Évolution % |
-| **2. Carte** | Quelles régions produisent et rendent le plus ? | Carte (latitude / longitude, taille = production, couleur = rendement), tableau des régions | Production, Rendement, Évolution % |
+| **2. Carte** | Quelles régions produisent et rendent le plus ? | Carte (régions placées par leur nom, taille = production, couleur = rendement), tableau des régions | Production, Rendement, Évolution % |
 | **3. Climat** | Comment le climat évolue-t-il ? | Pluie mensuelle par année (barres), températures (courbes), heatmap mois × année des pluies | Pluie, Températures |
 | **4. Agroclimat** | La pluie explique-t-elle le rendement ? | Nuage de points pluie de campagne × rendement par produit, anomalie de pluie par année | Pluie de campagne, Anomalie, Rendement, Couverture % |
 
 **Segments communs** (synchronisés sur toutes les pages) : Année, Région, Produit, Catégorie de produit, Système de production.
 
-**Carte :** le visuel *Carte* ou *Azure Maps* fonctionne directement avec `latitude` et `longitude` (catégorie de données à déclarer dans Power BI). Pour une carte choroplèthe (régions coloriées), utiliser *Shape Map* avec un fichier TopoJSON des régions du Sénégal, en joignant sur `code_iso`.
+**Carte :** le visuel *Carte* ou *Azure Maps* place les régions par leur nom. Dans Power BI, déclarer la catégorie de données *État ou province* sur `region`, et ajouter une colonne calculée `Lieu = 'Région'[region] & ", Sénégal"` à utiliser comme emplacement, pour éviter qu'une région soit confondue avec un lieu homonyme d'un autre pays. Pour une carte choroplèthe (régions coloriées), utiliser *Shape Map* avec un fichier TopoJSON des régions du Sénégal, en joignant sur le nom de la région.
 
 **Page 4 :** afficher `Couverture climatique %` à côté du nuage de points. Seules 59 % des campagnes ont un climat ; sans cette indication, le lecteur croirait que le nuage représente toute la production.
 

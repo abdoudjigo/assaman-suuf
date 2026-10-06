@@ -1,0 +1,52 @@
+version: 2
+
+models:
+  # Une ligne représente une campagne agricole avec rendement connu,
+  # avec ou sans climat (a_climat).
+  - name: ml_rendement_campagne
+    columns:
+      - name: observation_id
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('fct_agroclimat_campagne')
+                field: observation_id
+
+      - name: annee
+        tests:
+          - not_null
+
+      - name: produit
+        tests:
+          - not_null
+
+      - name: region
+        tests:
+          - not_null
+
+      - name: a_climat
+        tests:
+          - not_null
+
+      - name: cible_rendement_t_ha
+        tests:
+          - not_null
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0
+
+      - name: jeu
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['train', 'test']
+
+      - name: taux_couverture_climat
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0
+                max_value: 1
