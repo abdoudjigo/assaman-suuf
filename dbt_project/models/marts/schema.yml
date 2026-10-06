@@ -10,10 +10,18 @@ models:
           - not_null
           - unique
 
+      # warn sur relationships : une région absente de seed_regions est
+      # probablement mal orthographiée et serait mal placée sur la carte.
       - name: region
         tests:
           - not_null
           - unique
+          - relationships:
+              arguments:
+                to: ref('seed_regions')
+                field: region
+              config:
+                severity: warn
 
   # Une ligne représente un produit agricole.
   - name: dim_produit
@@ -28,7 +36,25 @@ models:
           - not_null
           - unique
 
-  # Une ligne représente un mois d'une année.
+      - name: categorie
+        tests:
+          - not_null:
+              config:
+                severity: warn
+
+  # Une ligne représente une année.
+  - name: dim_annee
+    columns:
+      - name: annee
+        tests:
+          - not_null
+          - unique
+
+      - name: decennie
+        tests:
+          - not_null
+
+  # Une ligne représente un mois d'une année (calendrier complet).
   - name: dim_temps
     columns:
       - name: date_key
@@ -39,8 +65,24 @@ models:
       - name: annee
         tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_annee')
+                field: annee
 
       - name: mois
+        tests:
+          - not_null
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 1
+                max_value: 12
+
+      - name: nom_mois
+        tests:
+          - not_null
+
+      - name: est_hivernage
         tests:
           - not_null
 
@@ -104,6 +146,49 @@ models:
           - accepted_values:
               arguments:
                 values: ['POSTGRES', 'MONGO', 'KAFKA']
+
+  # Une ligne représente une campagne agricole avec le résumé
+  # de son climat. Toutes les campagnes sont présentes (a_climat).
+  - name: fct_agroclimat_campagne
+    columns:
+      - name: observation_id
+        tests:
+          - not_null
+          - unique
+
+      - name: zone_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_zone')
+                field: zone_key
+
+      - name: produit_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_produit')
+                field: produit_key
+
+      - name: annee
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_annee')
+                field: annee
+
+      - name: a_climat
+        tests:
+          - not_null
+
+      - name: taux_couverture_climat
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0
+                max_value: 1
 
   # Une ligne représente une station pour une année et un mois.
   - name: fct_climat

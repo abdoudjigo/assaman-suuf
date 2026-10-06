@@ -70,3 +70,26 @@ models:
       - name: mois_climatique
         tests:
           - not_null
+
+  # Une ligne représente une région et un mois de l'année.
+  - name: int_climat_normales
+    tests:
+      - combinaison_unique:
+          arguments:
+            colonnes: ['zone_key', 'mois']
+    columns:
+      - name: zone_key
+        tests:
+          - not_null
+
+      - name: mois
+        tests:
+          - not_null
+
+  # Une ligne représente une campagne agricole ayant un climat.
+  - name: int_climat_campagne
+    columns:
+      - name: agriculture_observation_id
+        tests:
+          - not_null
+          - unique
