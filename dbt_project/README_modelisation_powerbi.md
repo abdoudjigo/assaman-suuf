@@ -42,16 +42,13 @@ Deux faits à des grains différents, reliés par des dimensions partagées :
 erDiagram
     DIM_ANNEE ||--o{ DIM_TEMPS : "annee"
     DIM_ANNEE ||--o{ FCT_AGROCLIMAT_CAMPAGNE : "annee"
-    DIM_ANNEE ||--o{ MART_PREDICTIONS_RENDEMENT : "annee"
     DIM_TEMPS ||--o{ FCT_CLIMAT : "date_key"
 
     DIM_ZONE ||--o{ DIM_STATION : "zone_key"
     DIM_ZONE ||--o{ FCT_AGROCLIMAT_CAMPAGNE : "zone_key"
-    DIM_ZONE ||--o{ MART_PREDICTIONS_RENDEMENT : "zone_key"
     DIM_STATION ||--o{ FCT_CLIMAT : "station_key"
 
     DIM_PRODUIT ||--o{ FCT_AGROCLIMAT_CAMPAGNE : "produit_key"
-    DIM_PRODUIT ||--o{ MART_PREDICTIONS_RENDEMENT : "produit_key"
 
     DIM_ANNEE {
         int annee PK
@@ -107,15 +104,6 @@ erDiagram
         float tmax
         float prcp_mm
     }
-    MART_PREDICTIONS_RENDEMENT {
-        string observation_id PK
-        string zone_key FK
-        string produit_key FK
-        int annee FK
-        float rendement_reel
-        float rendement_predit
-        string modele
-    }
 ```
 
 **Pourquoi une `dim_annee` en plus de `dim_temps` :** les campagnes sont annuelles (année de récolte), le climat est mensuel. Une dimension au grain de l'année, en tête des deux, permet à un seul segment « Année » de filtrer les deux faits en même temps : `dim_annee → fct_agroclimat_campagne` d'un côté, `dim_annee → dim_temps → fct_climat` de l'autre.
@@ -133,7 +121,6 @@ erDiagram
 | `dim_temps` | **Calendrier complet** + mois en français + hivernage | Aujourd'hui elle ne contient que les mois présents dans le climat : un mois sans relevé disparaît des axes au lieu d'apparaître vide |
 | `dim_zone` | + code ISO, latitude, longitude (seed) | Nécessaire pour la carte |
 | `dim_produit` | + catégorie (seed) | Segment « Céréales / Légumineuses / Cultures industrielles » |
-| `mart_predictions_rendement` | **Nouveau** | Prédictions ML reliées aux dimensions |
 
 ### `dim_annee`
 
@@ -257,33 +244,6 @@ LEFT JOIN {{ ref('seed_regions') }} AS r
 WHERE a.region IS NOT NULL
 ```
 
-### `mart_predictions_rendement`
-
-Les prédictions sont écrites par Python dans `ML.PREDICTIONS_RENDEMENT` (déclarée comme source dbt). Ce mart leur rattache les clés de dimension, pour qu'un segment Région, Produit ou Année filtre aussi les prédictions.
-
-```sql
--- models/marts/mart_predictions_rendement.sql
--- Une ligne par campagne prédite, pour la dernière version de chaque modèle.
-
-SELECT
-    p.observation_id,
-    a.zone_key,
-    a.produit_key,
-    a.annee,
-    a.superficie_ha,
-    a.rendement_t_ha AS rendement_reel,
-    p.rendement_predit,
-    p.modele,
-    p.version
-
-FROM {{ source('ml', 'predictions_rendement') }} AS p
-
-INNER JOIN {{ ref('fct_agroclimat_campagne') }} AS a
-    ON p.observation_id = a.observation_id
-
-QUALIFY p.version = MAX(p.version) OVER (PARTITION BY p.modele)
-```
-
 ---
 
 ## 4. Les relations dans Power BI
@@ -292,14 +252,11 @@ QUALIFY p.version = MAX(p.version) OVER (PARTITION BY p.modele)
 |---|---|---|---|
 | Année | Calendrier | `annee` | Simple |
 | Année | Campagnes | `annee` | Simple |
-| Année | Prédictions | `annee` | Simple |
 | Calendrier | Climat mensuel | `date_key` | Simple |
 | Région | Station | `zone_key` | Simple |
 | Région | Campagnes | `zone_key` | Simple |
-| Région | Prédictions | `zone_key` | Simple |
 | Station | Climat mensuel | `station_key` | Simple |
 | Produit | Campagnes | `produit_key` | Simple |
-| Produit | Prédictions | `produit_key` | Simple |
 
 - **Toutes les relations en direction simple**, des dimensions vers les faits. Une direction « Les deux » crée des chemins de filtre ambigus et des totaux faux.
 - **Aucune relation entre faits.** Campagnes et Climat mensuel se croisent uniquement via Année et Région.
@@ -368,22 +325,6 @@ DIVIDE (
 )
 ```
 
-### Prédictions
-
-```dax
-Rendement prédit (t/ha) =
-DIVIDE (
-    SUMX ( 'Prédictions', 'Prédictions'[rendement_predit] * 'Prédictions'[superficie_ha] ),
-    SUM ( 'Prédictions'[superficie_ha] )
-)
-
-Erreur moyenne (t/ha) =
-AVERAGEX (
-    'Prédictions',
-    ABS ( 'Prédictions'[rendement_predit] - 'Prédictions'[rendement_reel] )
-)
-```
-
 ---
 
 ## 6. Les pages du rapport
@@ -394,7 +335,6 @@ AVERAGEX (
 | **2. Carte** | Quelles régions produisent et rendent le plus ? | Carte (latitude / longitude, taille = production, couleur = rendement), tableau des régions | Production, Rendement, Évolution % |
 | **3. Climat** | Comment le climat évolue-t-il ? | Pluie mensuelle par année (barres), températures (courbes), heatmap mois × année des pluies | Pluie, Températures |
 | **4. Agroclimat** | La pluie explique-t-elle le rendement ? | Nuage de points pluie de campagne × rendement par produit, anomalie de pluie par année | Pluie de campagne, Anomalie, Rendement, Couverture % |
-| **5. Prédictions** | Que prévoit le modèle, et avec quelle fiabilité ? | Réel vs prédit (nuage), erreur par région et par produit | Rendement prédit, Erreur moyenne |
 
 **Segments communs** (synchronisés sur toutes les pages) : Année, Région, Produit, Catégorie de produit, Système de production.
 
@@ -410,7 +350,7 @@ AVERAGEX (
 |---|---|
 | Connecteur | Snowflake (natif Power BI) |
 | Entrepôt | `DATAFLOW360_WH` |
-| Base / schémas | `DATAFLOW360` — `MARTS` (+ `ML` si besoin) |
+| Base / schémas | `DATAFLOW360` — `MARTS` |
 | Mode | Import, actualisation planifiée après le `dbt build` quotidien |
 | Compte | **Compte de service dédié** avec un rôle en lecture seule sur `MARTS` |
 
