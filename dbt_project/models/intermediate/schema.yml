@@ -3,6 +3,10 @@ version: 2
 models:
   - name: int_agriculture
     columns:
+      - name: fnid
+        tests:
+          - not_null
+
       - name: source_system
         tests:
           - not_null
@@ -13,6 +17,10 @@ models:
       - name: annee_reference
         tests:
           - not_null
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 1900
+                max_value: 2100
 
       - name: produit
         tests:
@@ -20,16 +28,34 @@ models:
   # Une ligne représente une campagne agricole,
   # une station de sa région et un mois climatique de la campagne.
   - name: int_agroclimat
+    tests:
+      # Grain du modèle : une campagne ne peut pas apparaître deux fois
+      # pour la même station et le même mois.
+      - combinaison_unique:
+          arguments:
+            colonnes: ['agriculture_observation_id', 'station_key', 'date_key']
     columns:
       - name: agriculture_observation_id
         tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_agriculture')
+                field: observation_id
 
       - name: zone_key
         tests:
           - not_null
 
+      - name: produit_key
+        tests:
+          - not_null
+
       - name: station_key
+        tests:
+          - not_null
+
+      - name: climat_observation_id
         tests:
           - not_null
 
