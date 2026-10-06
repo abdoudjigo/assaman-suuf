@@ -2,7 +2,7 @@
 -- agrège les observations agricoles selon la région et l'année de récolte.
 
 SELECT
-    g.region,
+    z.region,
     f.annee_recolte AS annee,
 
     SUM(f.production_t) AS production_totale_t,
@@ -13,9 +13,9 @@ SELECT
 
 FROM {{ ref('fct_agriculture') }} AS f
 
-INNER JOIN {{ ref('dim_geographie') }} AS g
-    ON f.geographie_key = g.geographie_key
+INNER JOIN {{ ref('dim_zone') }} AS z
+    ON f.zone_key = z.zone_key
 
 GROUP BY
-    g.region,
+    z.region,
     f.annee_recolte

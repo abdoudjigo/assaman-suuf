@@ -1,16 +1,14 @@
 <div align="center">
 
-# DataFlow360 — dbt : transformation et modélisation
+# DataFlow360 — dbt : de la zone RAW aux modèles analytiques
 
-### De la zone RAW aux modèles analytiques — Assaman & Suuf
+### Documentation de l'architecture dbt actuelle — Assaman & Suuf
 
-[![Sprint](https://img.shields.io/badge/Sprint-1-6D28D9)](#)
-[![US](https://img.shields.io/badge/User%20Story-US17-1D4ED8)](#)
-[![Statut](https://img.shields.io/badge/Statut-Termin%C3%A9-16A34A)](#)
-[![Stack](https://img.shields.io/badge/Stack-dbt%202.0.6%20%7C%20Snowflake-FF694B?logo=dbt&logoColor=white)](#)
-[![Tests](https://img.shields.io/badge/Tests-37%2F37-16A34A)](#)
+[![Projet](https://img.shields.io/badge/Projet-DataFlow360%20%2F%20Assaman--Suuf-6D28D9)](#)
+[![Stack](https://img.shields.io/badge/Stack-dbt%20%7C%20Snowflake-FF694B?logo=dbt&logoColor=white)](#)
+[![Modèles](https://img.shields.io/badge/Mod%C3%A8les-15-1D4ED8)](#)
 
-> Ce README documente l'architecture dbt **actuelle** du projet. Elle remplace les anciennes dimensions `dim_annee` et `dim_zone`, retirées du projet.
+> Ce document couvre la couche dbt (transformation des données) : ce qu'elle fait, pourquoi elle est construite ainsi, et comment l'exécuter. FastAPI, Redis et l'exposition API sont documentés séparément, dans leur propre phase du projet.
 
 </div>
 
@@ -18,32 +16,34 @@
 
 ## Sommaire
 
-- [1. Pourquoi dbt, et pourquoi après RAW](#1-pourquoi-dbt-et-pourquoi-après-raw)
-- [2. Architecture en couches](#2-architecture-en-couches)
-- [3. Agriculture et climat ne se modélisent pas pareil](#3-agriculture-et-climat-ne-se-modélisent-pas-pareil)
-- [4. Sources RAW](#4-sources-raw)
-- [5. Staging](#5-staging)
-- [6. Intermediate — `int_agriculture`](#6-intermediate--int_agriculture)
-- [7. Dimensions](#7-dimensions)
-- [8. Tables de faits](#8-tables-de-faits)
+- [1. Pourquoi dbt, et où il intervient](#1-pourquoi-dbt-et-où-il-intervient)
+- [2. Architecture générale](#2-architecture-générale)
+- [3. `source()` et `ref()`](#3-source-et-ref)
+- [4. Staging — nettoyer source par source](#4-staging--nettoyer-source-par-source)
+- [5. `int_agriculture` — fusionner les trois sources](#5-int_agriculture--fusionner-les-trois-sources)
+- [6. `dim_zone` — la dimension qui relie tout](#6-dim_zone--la-dimension-qui-relie-tout)
+- [7. Dimensions et faits, en détail](#7-dimensions-et-faits-en-détail)
+- [8. `int_agroclimat` — rapprocher agriculture et climat](#8-int_agroclimat--rapprocher-agriculture-et-climat)
 - [9. Marts analytiques](#9-marts-analytiques)
 - [10. Tests](#10-tests)
-- [11. Organisation des fichiers](#11-organisation-des-fichiers)
+- [11. Structure des fichiers](#11-structure-des-fichiers)
 - [12. Commandes dbt](#12-commandes-dbt)
-- [13. Ce qui a changé depuis l'ancienne architecture](#13-ce-qui-a-changé-depuis-lancienne-architecture)
-- [14. État final](#14-état-final)
+- [13. Graphe de dépendances](#13-graphe-de-dépendances)
+- [14. Résumé pour un débutant](#14-résumé-pour-un-débutant)
 
 ---
 
-## 1. Pourquoi dbt, et pourquoi après RAW
+## 1. Pourquoi dbt, et où il intervient
 
-dbt (data build tool) transforme les données **à l'intérieur de Snowflake**, en SQL, par couches successives. Il intervient volontairement *après* l'ingestion (RAW) et non à la place : chaque outil d'ingestion (Airbyte, NiFi, pipeline Postgres, Kafka Connector) a pour seul rôle de déposer la donnée brute dans Snowflake sans la transformer. dbt prend le relais une fois la donnée arrivée, pour que toute la logique de nettoyage, d'harmonisation et de modélisation soit écrite au même endroit, versionnée, testée et relisible — plutôt qu'éparpillée dans quatre scripts d'ingestion différents.
+Les données arrivent dans Snowflake par quatre chemins d'ingestion distincts : PostgreSQL, MongoDB et Kafka pour l'agriculture, Airbyte pour le climat. Chacun a son propre outil, sa propre logique, son propre format de départ.
+
+**dbt n'ingère rien.** Il prend le relais une fois que la donnée est déjà posée dans Snowflake, en zone RAW, et ne fait que la transformer — en SQL, par étapes successives, versionnées et testées. C'est un choix délibéré : si le nettoyage était écrit dans chaque script d'ingestion, il faudrait le corriger à quatre endroits différents à chaque changement de règle. En le centralisant dans dbt, une règle se corrige une fois, au bon endroit.
 
 ```mermaid
 flowchart LR
-    SRC["4 sources<br/>PostgreSQL, MongoDB, Kafka, Airbyte/climat"] --> RAW[("Snowflake RAW")]
-    RAW --> DBT["dbt"]
-    DBT --> OUT["BI / API / ML"]
+    SRC["4 sources<br/>PostgreSQL · MongoDB · Kafka · Airbyte"] -->|"ingestion<br/>(hors dbt)"| RAW[("Snowflake RAW")]
+    RAW -->|"dbt prend le relais ici"| DBT["dbt"]
+    DBT --> OUT["Power BI / API / ML<br/>(prochaine phase)"]
 
     classDef src fill:#F3F4F6,stroke:#6B7280,color:#374151
     classDef raw fill:#FEE2E2,stroke:#B91C1C,color:#7F1D1D
@@ -57,162 +57,95 @@ flowchart LR
 
 ---
 
-## 2. Architecture en couches
+## 2. Architecture générale
 
 ```mermaid
-flowchart TB
-    RAW["RAW"] --> STG["STAGING"]
-    STG --> INT["INTERMEDIATE"]
-    INT --> MARTS["MARTS<br/>(dimensions + facts + marts analytiques)"]
+flowchart LR
+    RAW["RAW<br/>4 tables brutes"] --> STG["STAGING<br/>nettoyage par source"] --> INT["INTERMEDIATE<br/>fusion + rapprochement"] --> MARTS["MARTS<br/>dimensions, faits, agrégats"]
 
-    classDef couche fill:#DBEAFE,stroke:#1D4ED8,color:#1E3A8A
-    classDef marts fill:#F2C811,stroke:#92400E,color:#78350F,stroke-width:2px
-    class RAW,STG,INT couche
-    class MARTS marts
+    classDef raw fill:#FEE2E2,stroke:#B91C1C,color:#7F1D1D
+    classDef stg fill:#DBEAFE,stroke:#1D4ED8,color:#1E3A8A
+    classDef inter fill:#FEF3C7,stroke:#B45309,color:#78350F
+    classDef mart fill:#F2C811,stroke:#92400E,color:#78350F,stroke-width:2px
+    class RAW raw
+    class STG stg
+    class INT inter
+    class MARTS mart
 ```
 
-| Couche | Rôle | Pourquoi elle existe |
+| Couche | Rôle | Modèles |
 |---|---|---|
-| **RAW** | Donnée brute, non modifiée | Garder une copie fidèle de ce que chaque source a réellement envoyé, pour pouvoir toujours revenir en arrière |
-| **STAGING** | Nettoyage et typage, source par source | Isoler les particularités de chaque source (JSON Kafka, types MongoDB...) avant de les faire se ressembler |
-| **INTERMEDIATE** | Consolidation entre sources | Fusionner les 3 sources agricoles en une seule structure commune, sans encore faire de calculs métier |
-| **MARTS** | Dimensions, faits, agrégats | Donner aux dashboards et aux analyses une structure prête à l'emploi (schéma en étoile) |
+| **RAW** (hors dbt) | Copie fidèle de ce que chaque source a réellement envoyé | `RAW_POSTGRES_AGRICULTURE`, `RAW_MONGO_AGRICULTURE`, `RAW_KAFKA_AGRICULTURE`, `RAW_AIRBYTE_CLIMAT` |
+| **STAGING** | Isoler les particularités de chaque source avant de les faire se ressembler | `stg_postgres_agriculture`, `stg_mongo_agriculture`, `stg_kafka_agriculture`, `stg_climat` |
+| **INTERMEDIATE** | Fusionner l'agricole, puis rapprocher agriculture et climat | `int_agriculture`, `int_agroclimat` |
+| **MARTS — dimensions** | Informations descriptives, décrites une seule fois | `dim_zone`, `dim_produit`, `dim_station`, `dim_temps` |
+| **MARTS — faits** | Les mesures elles-mêmes | `fct_agriculture`, `fct_climat` |
+| **MARTS — analytiques** | Agrégats prêts à brancher sur un dashboard | `mart_production_produit_annee`, `mart_production_region_annee`, `mart_climat_station_annee` |
+
+Soit **15 modèles** dbt, tous construits avec succès dans Snowflake lors de la dernière validation (`dbt build`).
+
+---
+
+## 3. `source()` et `ref()`
+
+Deux fonctions dbt structurent toutes les dépendances du projet, et c'est ce qui permet à dbt de ne jamais se tromper dans l'ordre d'exécution :
+
+| Fonction | Pointe vers | Exemple |
+|---|---|---|
+| `source('raw', 'raw_postgres_agriculture')` | Une table RAW créée par l'ingestion, en dehors de dbt | Toujours en entrée d'un modèle Staging |
+| `ref('stg_postgres_agriculture')` | Un autre modèle dbt | Tout le reste de la chaîne |
+
+```sql
+-- plutôt que d'écrire en dur :
+-- DATAFLOW360.RAW.RAW_POSTGRES_AGRICULTURE
+
+-- on écrit :
+SELECT * FROM {{ source('raw', 'raw_postgres_agriculture') }}
+```
+
+**Pourquoi cette distinction compte concrètement.** `source()` marque la frontière entre « ce que dbt ne contrôle pas » (l'ingestion) et « ce que dbt transforme ». `ref()` laisse dbt reconstruire lui-même, à partir de ces appels, l'ordre dans lequel les modèles doivent tourner (section 13) — personne n'a besoin de le déclarer à la main, et un modèle renommé ne casse rien ailleurs tant que les `ref()` sont à jour.
+
+---
+
+## 4. Staging — nettoyer source par source
+
+Rôle commun aux quatre modèles : retirer les colonnes techniques inutiles à l'analyse, caster les types vers un référentiel commun, extraire le JSON quand nécessaire. **Rien de plus** — aucune jointure, aucune règle métier : ça, c'est le rôle des couches suivantes.
+
+| Modèle | Ce qu'il nettoie | Pourquoi c'est spécifique |
+|---|---|---|
+| `stg_postgres_agriculture` | Colonnes techniques du chargement (`LOADED_AT`, `_DLT_ID`...) | Colonnes déjà typées nativement côté PostgreSQL : cast direct (`::INTEGER`, `::FLOAT`) |
+| `stg_mongo_agriculture` | Colonnes aplaties du document Mongo | Arrivent en texte brut : `TRY_CAST` sur les champs numériques, pour qu'une valeur mal formée devienne `NULL` plutôt que de faire planter tout le modèle |
+| `stg_kafka_agriculture` | Extraction du champ `VARIANT` `RECORD_CONTENT` | Les données métier ne sont pas dans des colonnes classiques mais dans un objet JSON : chaque champ est extrait explicitement (`RECORD_CONTENT:fnid::VARCHAR`, etc.) |
+| `stg_climat` | Colonnes techniques Airbyte (`_AIRBYTE_*`) | Colonnes déjà numériques dans Snowflake : cast direct, pas de `TRY_CAST` |
 
 ```mermaid
-flowchart TB
+flowchart LR
     R1[("RAW_POSTGRES_AGRICULTURE")] --> S1["stg_postgres_agriculture"]
     R2[("RAW_MONGO_AGRICULTURE")] --> S2["stg_mongo_agriculture"]
     R3[("RAW_KAFKA_AGRICULTURE")] --> S3["stg_kafka_agriculture"]
     R4[("RAW_AIRBYTE_CLIMAT")] --> S4["stg_climat"]
 
-    S1 & S2 & S3 --> INT["int_agriculture"]
-
-    INT --> FA["fct_agriculture"]
-    S4 --> FC["fct_climat"]
-
-    DG["dim_geographie"] --> FA
-    DP["dim_produit"] --> FA
-    DS["dim_station"] --> FC
-    DT["dim_temps"] --> FC
-
-    FA --> M1["mart_production_produit_annee"]
-    FA --> M2["mart_production_region_annee"]
-    FC --> M3["mart_climat_station_annee"]
-
     classDef raw fill:#FEE2E2,stroke:#B91C1C,color:#7F1D1D
     classDef stg fill:#DBEAFE,stroke:#1D4ED8,color:#1E3A8A
-    classDef inter fill:#FEF3C7,stroke:#B45309,color:#78350F
-    classDef dim fill:#EDE9FE,stroke:#6D28D9,color:#4C1D95
-    classDef fait fill:#D1FAE5,stroke:#047857,color:#065F46
-    classDef mart fill:#F2C811,stroke:#92400E,color:#78350F,stroke-width:2px
     class R1,R2,R3,R4 raw
     class S1,S2,S3,S4 stg
-    class INT inter
-    class DG,DP,DS,DT dim
-    class FA,FC fait
-    class M1,M2,M3 mart
 ```
+
+Une règle d'harmonisation commune aux trois modèles agricoles mérite d'être mentionnée : la variable `systeme_production` arrive sous des formes différentes selon la source (`"Pluvial"`, `"pluvial"`, `"None"`...) et est ramenée, dans chacun des trois modèles, aux mêmes trois valeurs canoniques — `Pluvial`, `Irrigué`, `Décrue (PS)` — via une normalisation `LOWER(TRIM(...))` suivie d'un `CASE`.
 
 ---
 
-## 3. Agriculture et climat ne se modélisent pas pareil
+## 5. `int_agriculture` — fusionner les trois sources
 
-C'est le point le plus important à comprendre avant de lire le reste : les deux domaines n'ont pas le même **grain** (le niveau de détail d'une ligne), donc ils ne partagent ni la même dimension temps ni la même dimension géographique.
-
-### Agriculture — une ligne = une campagne, pas un mois
-
-Une ligne agricole représente une **observation / campagne agricole** : FNID, région, département, produit, saison, année et mois de semis, année et mois de récolte, système de production, superficie, production, rendement.
-
-**Pourquoi ce n'est pas une table mensuelle.** Les mois de semis et de récolte sont des **attributs de la campagne** (quand elle a commencé, quand elle s'est terminée) — ils ne signifient pas qu'il existe une observation pour chaque mois entre les deux. `fct_agriculture` reste donc au grain de la campagne, pas du mois.
-
-### Climat — une ligne = une mesure mensuelle
-
-Les données climatiques sont, elles, réellement mensuelles. Le grain de `fct_climat` est :
-
-```text
-1 station + 1 année + 1 mois
-```
-
-```mermaid
-flowchart LR
-    subgraph AGRI["Agriculture"]
-        direction LR
-        A1["1 ligne = 1 campagne<br/>(semis → récolte)"]
-    end
-    subgraph CLIM["Climat"]
-        direction LR
-        C1["1 ligne = 1 station + 1 mois"]
-    end
-
-    classDef agri fill:#DCFCE7,stroke:#15803D,color:#14532D
-    classDef clim fill:#FEF9C3,stroke:#A16207,color:#713F12
-    class A1 agri
-    class C1 clim
-```
-
-C'est pour cette raison que la dimension temps du climat (`dim_temps`, granularité année + mois) est différente de la logique temporelle de l'agriculture (qui reste au niveau de la campagne, via `annee_semis`/`annee_recolte` directement dans `fct_agriculture`).
-
----
-
-## 4. Sources RAW
-
-Quatre tables RAW alimentent dbt, déclarées dans `models/staging/sources.yml` :
-
-```yaml
-version: 2
-sources:
-  - name: raw
-    database: DATAFLOW360
-    schema: RAW
-    tables:
-      - name: raw_postgres_agriculture
-      - name: raw_mongo_agriculture
-      - name: raw_kafka_agriculture
-      - name: raw_airbyte_climat
-```
-
-Déclarer les sources plutôt que d'écrire le chemin en dur permet à un modèle d'écrire :
+**Pourquoi une couche de fusion séparée.** Les trois sources agricoles partagent la même structure conceptuelle, mais restent trois flux distincts après le Staging. Sans `int_agriculture`, chaque dimension et chaque fait devrait relire les trois modèles Staging et refaire la fusion lui-même — avec le risque que la règle de fusion diverge d'un modèle à l'autre. En centralisant la fusion ici, elle ne se fait qu'une fois.
 
 ```sql
-{{ source('raw', 'raw_postgres_agriculture') }}
+SELECT *, 'POSTGRES' AS source_system FROM {{ ref('stg_postgres_agriculture') }}
+UNION ALL
+SELECT *, 'MONGO'    AS source_system FROM {{ ref('stg_mongo_agriculture') }}
+UNION ALL
+SELECT *, 'KAFKA'    AS source_system FROM {{ ref('stg_kafka_agriculture') }}
 ```
-
-au lieu de `DATAFLOW360.RAW.RAW_POSTGRES_AGRICULTURE` — un seul endroit à corriger si une table RAW change de nom.
-
----
-
-## 5. Staging
-
-### 5.1 Agriculture
-
-Les trois sources agricoles restent **séparées** à ce stade : `stg_postgres_agriculture`, `stg_mongo_agriculture`, `stg_kafka_agriculture`. Elles ne sont réunies qu'en `INTERMEDIATE` (section 6) — le Staging s'occupe uniquement de nettoyer chaque source dans son propre format, sans encore les comparer entre elles.
-
-### 5.2 Climat — `stg_climat`
-
-```sql
-SELECT
-    id::INTEGER         AS id,
-    TRIM(station)        AS station,
-    TRIM(station_nom)    AS station_nom,
-    annee::INTEGER       AS annee,
-    mois::INTEGER        AS mois,
-    tavg::FLOAT          AS tavg,
-    tmin::FLOAT          AS tmin,
-    tmax::FLOAT          AS tmax,
-    prcp_mm::FLOAT       AS prcp_mm,
-    nb_jours::INTEGER    AS nb_jours
-FROM {{ source('raw', 'raw_airbyte_climat') }}
-```
-
-Contient : `id`, `station`, `station_nom`, `annee`, `mois`, `tavg`, `tmin`, `tmax`, `prcp_mm`, `nb_jours`.
-
----
-
-## 6. Intermediate — `int_agriculture`
-
-**Pourquoi cette couche.** Les trois sources agricoles partagent la même structure conceptuelle mais restent trois flux distincts après le Staging. `int_agriculture` leur donne une base commune unique — toute règle de fusion ne se corrige qu'à un seul endroit, pas trois.
-
-**Comment.** Les trois modèles Staging agricoles sont assemblés avec `UNION ALL` (pas `UNION` : le diagnostic préalable a confirmé l'absence de chevauchement entre sources, il n'y a donc rien à dédupliquer).
 
 ```mermaid
 flowchart LR
@@ -229,162 +162,153 @@ flowchart LR
     class INT inter
 ```
 
-Deux colonnes ajoutées à cette étape :
+**Pourquoi `UNION ALL` et pas `UNION`.** Le diagnostic préalable des sources a confirmé qu'aucune des trois sources ne se chevauche dans le temps et qu'aucune clé commune n'existe entre elles : il n'y a donc rien à dédupliquer, et `UNION ALL` évite le coût de calcul inutile d'une déduplication qui ne trouverait jamais rien.
 
-| Colonne | Rôle | Pourquoi |
-|---|---|---|
-| `source_system` | `POSTGRES` / `MONGO` / `KAFKA` | Garder la trace de l'origine de chaque ligne même après fusion, pour isoler un problème propre à une seule source |
-| `annee_reference` | `annee_recolte`, sinon `annee_semis` | Donner une année unique utilisable pour toutes les analyses temporelles agricoles |
+Deux colonnes ajoutées ici :
 
-`int_agriculture` sert ensuite de base commune à `fct_agriculture` (section 8).
+| Colonne | Rôle |
+|---|---|
+| `source_system` | `POSTGRES` / `MONGO` / `KAFKA` — garde la trace de l'origine de chaque ligne même après fusion, utile pour isoler un problème propre à une seule source |
+| `annee_reference` | `annee_recolte`, et seulement si elle est `NULL`, `annee_semis` — donne une année unique utilisable pour les analyses temporelles agricoles |
 
 ---
 
-## 7. Dimensions
+## 6. `dim_zone` — la dimension qui relie tout
 
-Quatre dimensions, créées dans le schéma `MARTS`.
+C'est la pièce centrale de toute l'architecture, et elle mérite d'être comprise avant le reste.
 
-| Dimension | Remplace | Contenu | Rôle |
-|---|---|---|---|
-| `dim_geographie` | `dim_zone` | `geographie_key`, `fnid`, `departement`, `region` | Où se situe une observation agricole |
-| `dim_produit` | — | `produit_key`, `produit` | Quel produit est concerné |
-| `dim_temps` | `dim_annee` | `date_key`, `annee`, `mois`, `nom_mois`, `trimestre` | Quand une observation climatique a été mesurée |
-| `dim_station` | — | `station_key`, `station`, `station_nom` | Quelle station climatique a produit l'observation |
+**Le problème qu'elle résout.** L'agriculture et le climat ont besoin d'une géographie commune pour pouvoir un jour être croisés. Mais les stations météo ne sont connues qu'au niveau de la **région** — pas du département, pas du FNID. Si `dim_zone` descendait plus bas dans la hiérarchie géographique, elle romprait le seul niveau que les deux domaines partagent réellement, et `int_agroclimat` (section 8) deviendrait impossible à construire proprement.
 
-### 7.1 `dim_geographie` — pourquoi elle remplace `dim_zone`
-
-Elle représente la hiérarchie géographique **réellement présente** dans les données, du niveau le plus large au plus précis :
-
-```mermaid
-flowchart TB
-    R["Région"] --> D["Département"] --> F["FNID"]
-
-    classDef geo fill:#CFFAFE,stroke:#0E7490,color:#164E63
-    class R,D,F geo
-```
-
-`geographie_key` est générée à partir du FNID, et utilisée par `fct_agriculture` pour relier chaque observation à sa géographie.
-
-### 7.2 `dim_temps` — pourquoi elle remplace `dim_annee`, et pourquoi ce n'est pas un calendrier généré
-
-`dim_annee` ne couvrait qu'une granularité annuelle, insuffisante pour le climat (mensuel). `dim_temps` la remplace avec une granularité année + mois.
-
-**Point important :** cette dimension n'est **pas** un calendrier complet généré artificiellement (du type « toutes les dates de 1960 à 2025 »). Elle est construite uniquement à partir des couples `année + mois` **réellement présents** dans les données climatiques — pas de ligne pour un mois qui n'a jamais été observé.
-
-La clé est construite au format `YYYYMM`, par exemple `201507` pour juillet 2015.
+`dim_zone` reste donc volontairement simple : `zone_key`, `region`. C'est le plus petit niveau géographique commun aux deux domaines, ni plus précis, ni plus large que nécessaire.
 
 ```mermaid
 flowchart LR
-    OBS["Observations climatiques<br/>réelles (année, mois)"] --> DT["dim_temps<br/>(uniquement les couples observés)"]
+    DZ["dim_zone<br/>(région)"] --> FA["fct_agriculture"]
+    DZ --> DST["dim_station"]
+    DST --> FC["fct_climat"]
+    DT["dim_temps"] --> FC
 
-    classDef obs fill:#DBEAFE,stroke:#1D4ED8,color:#1E3A8A
-    classDef dim fill:#EDE9FE,stroke:#6D28D9,color:#4C1D95
-    class OBS obs
-    class DT dim
+    classDef zone fill:#CFFAFE,stroke:#0E7490,color:#164E63,stroke-width:2px
+    classDef autre fill:#DBEAFE,stroke:#1D4ED8,color:#1E3A8A
+    class DZ zone
+    class FA,DST,FC,DT autre
 ```
 
-Cette dimension sert à `fct_climat` et à `mart_climat_station_annee`. **Elle n'est pas utilisée par l'agriculture**, qui reste au grain de la campagne (section 3).
+`dim_station.zone_key` rattache chaque station à sa région. Une région peut avoir plusieurs stations :
 
-### 7.3 `dim_station` — pourquoi elle reste indépendante de la géographie agricole
+| Région | Station(s) |
+|---|---|
+| Dakar | Dakar-Ouakam, Dakar/Yoff |
+| Kaolack | Kaolack |
+| Saint-Louis | Podor, Saint-Louis |
 
-`dim_station` représente les stations météorologiques, sans lien avec `dim_geographie`.
-
-**Pourquoi ne pas les relier.** Aucune relation fiable entre une station climatique et un FNID agricole n'a été établie dans les données actuelles. Inventer un lien `station → FNID` donnerait une fausse impression de précision géographique — une station n'est pas automatiquement représentative de la zone agricole qui l'entoure. Ce lien n'existe donc ni dans le modèle ni dans ce README.
+**Trois régions (Fatick, Kaffrine, Sédhiou) n'ont actuellement aucune station** dans le périmètre de données disponible — c'est une limitation réelle de couverture, pas une erreur de modèle : il n'y a aucune station à inventer pour ces régions.
 
 ---
 
-## 8. Tables de faits
+## 7. Dimensions et faits, en détail
 
-### 8.1 `fct_agriculture`
+| Modèle | Contenu | Grain / rôle |
+|---|---|---|
+| `dim_zone` | `zone_key`, `region` | Référence géographique commune agriculture/climat |
+| `dim_produit` | `produit_key`, `produit` | Les produits agricoles |
+| `dim_station` | `station_key`, `station`, `station_nom`, `zone_key` | Les stations météo, rattachées à leur région |
+| `dim_temps` | `date_key` (`annee*100+mois`), `annee`, `mois`, `nom_mois`, `trimestre` | **Pas un calendrier généré** : construite uniquement à partir des couples année/mois réellement observés dans le climat |
+| `fct_agriculture` | `observation_id`, `zone_key`, `produit_key`, `fnid`, `saison`, dates de semis/récolte, `systeme_production`, `superficie_ha`, `production_t`, `rendement_t_ha`, `source_system` | **Grain : 1 campagne agricole.** Les mois de semis et de récolte sont des *attributs* de la campagne, pas une preuve que l'agriculture est une donnée mensuelle |
+| `fct_climat` | `observation_id`, `station_key`, `date_key`, `tavg`, `tmin`, `tmax`, `prcp_mm`, `nb_jours` | **Grain : 1 station × 1 année × 1 mois** |
 
-**Grain :** 1 observation agricole / campagne.
-
-Contient : `observation_id`, `geographie_key`, `produit_key`, `fnid`, `saison`, `annee_semis`, `mois_semis`, `annee_recolte`, `mois_recolte`, `systeme_production`, `indicateur_qualite`, `superficie_ha`, `production_t`, `rendement_t_ha`, `source_system`.
-
-**Point important sur `observation_id` :** cette clé technique est générée à partir des attributs de l'observation, mais elle **n'est pas présentée comme une clé métier garantie unique** — des doublons existent dans certaines sources (voir le diagnostic initial sur les événements multiples Kafka). `observation_id` identifie une ligne, pas une garantie d'unicité métier.
-
-### 8.2 `fct_climat`
-
-**Grain :** 1 station + 1 année + 1 mois.
-
-Contient : `observation_id`, `station_key`, `date_key`, `tavg`, `tmin`, `tmax`, `prcp_mm`, `nb_jours`.
-
-Relations :
-
-```text
-station_key → dim_station.station_key
-date_key    → dim_temps.date_key
-```
-
-### 8.3 Modèle en étoile obtenu
+**Point d'attention sur `observation_id` :** cette clé technique identifie une ligne, mais n'est pas garantie unique au sens métier — des doublons existent dans certaines sources (voir le diagnostic initial sur les événements multiples Kafka). Elle ne doit pas être utilisée comme clé de dédoublonnage.
 
 ```mermaid
 erDiagram
-    DIM_GEOGRAPHIE ||--o{ FCT_AGRICULTURE : geographie_key
+    DIM_ZONE ||--o{ FCT_AGRICULTURE : zone_key
     DIM_PRODUIT ||--o{ FCT_AGRICULTURE : produit_key
+    DIM_ZONE ||--o{ DIM_STATION : zone_key
     DIM_STATION ||--o{ FCT_CLIMAT : station_key
     DIM_TEMPS ||--o{ FCT_CLIMAT : date_key
 
-    DIM_GEOGRAPHIE {
-        string geographie_key PK
-        string fnid
-        string departement
+    DIM_ZONE {
+        string zone_key PK
         string region
-    }
-    DIM_PRODUIT {
-        string produit_key PK
-        string produit
-    }
-    DIM_TEMPS {
-        string date_key PK
-        int annee
-        int mois
-        string nom_mois
-        int trimestre
     }
     DIM_STATION {
         string station_key PK
         string station
         string station_nom
+        string zone_key FK
     }
     FCT_AGRICULTURE {
         string observation_id
-        string geographie_key FK
+        string zone_key FK
         string produit_key FK
-        string fnid
-        string saison
-        int annee_semis
-        int mois_semis
-        int annee_recolte
-        int mois_recolte
-        string systeme_production
-        int indicateur_qualite
         float superficie_ha
         float production_t
         float rendement_t_ha
-        string source_system
     }
     FCT_CLIMAT {
         string observation_id
         string station_key FK
         string date_key FK
         float tavg
-        float tmin
-        float tmax
         float prcp_mm
-        int nb_jours
     }
 ```
 
 ---
 
+## 8. `int_agroclimat` — rapprocher agriculture et climat
+
+C'est le modèle qui répond à la vraie question métier du projet : **quel climat une campagne agricole a-t-elle connu ?**
+
+```mermaid
+flowchart TB
+    FA2["fct_agriculture<br/>1 campagne"] --> DZ2["dim_zone<br/>sa région"]
+    DZ2 --> DST2["dim_station<br/>stations de cette région"]
+    DST2 --> FC2["fct_climat<br/>mesures mensuelles"]
+    FC2 --> DT2["dim_temps<br/>filtrer les mois pertinents"]
+    DT2 --> IAC["int_agroclimat"]
+
+    classDef etape fill:#DBEAFE,stroke:#1D4ED8,color:#1E3A8A
+    classDef sortie fill:#FEF3C7,stroke:#B45309,color:#78350F,stroke-width:2px
+    class FA2,DZ2,DST2,FC2,DT2 etape
+    class IAC sortie
+```
+
+**Règle de rapprochement :** année climatique = année de récolte (c'est l'année où le rendement, résultat de la campagne, est connu) ; mois climatique compris entre `mois_semis` et `mois_recolte`. Simplification actuelle : aucune campagne du jeu de données ne traverse deux années civiles, le modèle n'a donc pas besoin de gérer ce cas pour l'instant.
+
+**Grain : 1 campagne × 1 station de sa région × 1 mois climatique disponible pendant la campagne.** Une campagne de 6 mois peut donc produire plusieurs lignes selon le nombre de stations de sa région :
+
+| Région | Stations | Mois de campagne | Lignes possibles |
+|---|:---:|:---:|:---:|
+| Kaolack | 1 | 6 | jusqu'à 6 |
+| Dakar | 2 | 6 | jusqu'à 12 |
+
+Aucune contrainte d'unicité n'est posée sur `agriculture_observation_id` dans ce modèle : une même campagne apparaît légitimement plusieurs fois, une fois par mois × par station — ce n'est pas un doublon à corriger.
+
+**Exemple réel documenté :** Arachide (en coque), région de Kaolack, campagne 2000, semis en juin, récolte en novembre, station de Kaolack.
+
+| Mois | TAVG | PRCP (mm) |
+|---|--:|--:|
+| Juin | 29,41 | 11,7 |
+| Juillet | 28,17 | 33,8 |
+| Août | 27,37 | 209,5 |
+| Septembre | 28,35 | 237,2 |
+| Octobre | 28,31 | 88,0 |
+| Novembre | 28,20 | `NULL` |
+
+`NULL ≠ 0` : l'absence de mesure en novembre signifie que la donnée n'est pas disponible, pas qu'il n'a pas plu.
+
+**Couverture actuelle : 59,24 %** des campagnes agricoles (5 912 sur 9 979) ont un climat associé. Les campagnes restantes n'ont pas de station dans leur région, ou pas de mois climatique disponible pendant leur période — ce ne sont pas des erreurs : le modèle choisit volontairement de ne conserver que les correspondances réellement disponibles, plutôt que d'inventer une valeur climatique approximative.
+
+---
+
 ## 9. Marts analytiques
 
-| Mart | Granularité | Indicateurs | Détail |
-|---|---|---|---|
-| `mart_production_produit_annee` | Produit × année de récolte | `production_totale_t`, `superficie_totale_ha`, `rendement_moyen_t_ha`, `nombre_observations` | L'année utilisée est `annee_recolte`, pas `annee_semis` |
-| `mart_production_region_annee` | Région × année de récolte | Mêmes agrégats, par région | La région est récupérée via `fct_agriculture → dim_geographie` |
-| `mart_climat_station_annee` | Station × année | `temperature_moyenne`, `temperature_minimale`, `temperature_maximale`, `precipitation_totale_mm`, `nombre_jours`, `nombre_observations` | Calculé en agrégeant les observations mensuelles de `fct_climat`, avec `dim_temps` pour récupérer l'année |
+| Mart | Granularité | Indicateurs |
+|---|---|---|
+| `mart_production_produit_annee` | Produit × année de récolte | `production_totale_t`, `superficie_totale_ha`, `rendement_moyen_t_ha`, `nombre_observations` |
+| `mart_production_region_annee` | Région × année de récolte | Mêmes agrégats, par région, via `fct_agriculture.zone_key → dim_zone` |
+| `mart_climat_station_annee` | Station × année | `temperature_moyenne`/`minimale`/`maximale`, `precipitation_totale_mm`, `nombre_jours`, `nombre_observations` |
 
 ```mermaid
 flowchart LR
@@ -402,55 +326,28 @@ flowchart LR
 
 ## 10. Tests
 
-Dernière exécution complète :
+La dernière validation complète (`dbt build`) est passée avec succès, modèles et tests compris. Les tests couvrent :
 
-```text
-37 tests
-37 success
-0 error
-```
-
-| Type de test | Exemple d'usage |
+| Type | Vérifie |
 |---|---|
-| `not_null` | Champs obligatoires des faits et dimensions |
-| `unique` | Clés des dimensions (`geographie_key`, `produit_key`, `station_key`, `date_key`) |
-| `relationships` | `fct_agriculture.geographie_key → dim_geographie.geographie_key` · `fct_agriculture.produit_key → dim_produit.produit_key` · `fct_climat.station_key → dim_station.station_key` · `fct_climat.date_key → dim_temps.date_key` |
-| `accepted_values` | `source_system` limité à `POSTGRES` / `MONGO` / `KAFKA` · `systeme_production` limité à `Pluvial` / `Irrigué` / `Décrue (PS)` (sévérité adaptée aux données existantes) |
+| `not_null` | Qu'un champ obligatoire n'est jamais vide |
+| `unique` | Qu'il n'existe pas deux fois la même clé de dimension (`zone_key`, `produit_key`, `station_key`, `date_key`) |
+| `relationships` | Qu'aucune ligne de fait ne pointe vers une dimension inexistante (`fct_agriculture.zone_key → dim_zone`, `fct_agriculture.produit_key → dim_produit`, `dim_station.zone_key → dim_zone`, `fct_climat.station_key → dim_station`, `fct_climat.date_key → dim_temps`) |
+| `accepted_values` | `source_system` limité à `POSTGRES`/`MONGO`/`KAFKA` ; `systeme_production` limité à `Pluvial`/`Irrigué`/`Décrue (PS)` |
 
-```mermaid
-flowchart LR
-    FA["fct_agriculture.geographie_key"] -->|relationships| DG["dim_geographie.geographie_key"]
-    FA2["fct_agriculture.produit_key"] -->|relationships| DP["dim_produit.produit_key"]
-    FC["fct_climat.station_key"] -->|relationships| DS["dim_station.station_key"]
-    FC2["fct_climat.date_key"] -->|relationships| DT["dim_temps.date_key"]
+Tests SQL personnalisés : `assert_agriculture_positive_values`, `assert_agriculture_valid_months`, `assert_climat_valid_months`, `assert_mesures_agricoles_non_negatives`, `assert_mois_valides`.
 
-    classDef fait fill:#D1FAE5,stroke:#047857,color:#065F46
-    classDef dim fill:#EDE9FE,stroke:#6D28D9,color:#4C1D95
-    class FA,FA2,FC,FC2 fait
-    class DG,DP,DS,DT dim
-```
-
-### Tests métier personnalisés
-
-```text
-tests/assert_agriculture_positive_values.sql
-tests/assert_agriculture_valid_months.sql
-tests/assert_climat_valid_months.sql
-tests/assert_mesures_agricoles_non_negatives.sql
-tests/assert_mois_valides.sql
-```
-
-**Point important :** `assert_climat_valid_months` vérifie désormais les mois dans **`dim_temps`**, et non directement dans `fct_climat` — parce que `fct_climat` utilise maintenant `date_key` pour pointer vers la dimension temps, la validité du mois se contrôle donc à la source de cette information, pas à chaque ligne de fait qui s'y réfère.
+`assert_climat_valid_months` contrôle les mois dans `dim_temps`, pas directement dans `fct_climat`, puisque `fct_climat` pointe vers `dim_temps` via `date_key` : la validité du mois se vérifie à la source de cette information, pas à chaque ligne de fait qui s'y réfère.
 
 ---
 
-## 11. Organisation des fichiers
+## 11. Structure des fichiers
 
 ```text
 dbt_project/
 ├── dbt_project.yml
 ├── macros/
-├── tests/
+├── tests/                      # tests SQL personnalisés
 │   ├── assert_agriculture_positive_values.sql
 │   ├── assert_agriculture_valid_months.sql
 │   ├── assert_climat_valid_months.sql
@@ -460,27 +357,19 @@ dbt_project/
     ├── staging/
     │   ├── schema.yml
     │   ├── sources.yml
-    │   ├── stg_postgres_agriculture.sql
-    │   ├── stg_mongo_agriculture.sql
-    │   ├── stg_kafka_agriculture.sql
-    │   └── stg_climat.sql
+    │   └── stg_*.sql              # 4 modèles
     ├── intermediate/
     │   ├── schema.yml
-    │   └── int_agriculture.sql
+    │   ├── int_agriculture.sql
+    │   └── int_agroclimat.sql
     └── marts/
         ├── schema.yml
-        ├── dim_geographie.sql
-        ├── dim_produit.sql
-        ├── dim_temps.sql
-        ├── dim_station.sql
-        ├── fct_agriculture.sql
-        ├── fct_climat.sql
-        ├── mart_production_produit_annee.sql
-        ├── mart_production_region_annee.sql
-        └── mart_climat_station_annee.sql
+        ├── dim_*.sql               # 4 dimensions
+        ├── fct_*.sql               # 2 faits
+        └── mart_*.sql              # 3 marts
 ```
 
-**Pourquoi un `schema.yml` par couche plutôt qu'un seul fichier central.** Garder la documentation et les tests au plus près des modèles qu'ils décrivent évite d'avoir à chercher dans un fichier unique et volumineux à chaque modification — un modèle Staging se documente dans `staging/schema.yml`, pas dans un `models/schema.yml` central qu'il faudrait recréer.
+**Pourquoi un `schema.yml` par couche plutôt qu'un fichier central.** Garder la documentation et les tests au plus près des modèles qu'ils décrivent évite de chercher dans un fichier unique et volumineux à chaque modification : un modèle Staging se documente dans `staging/schema.yml`, pas dans un fichier global partagé par les 15 modèles du projet.
 
 ---
 
@@ -488,60 +377,57 @@ dbt_project/
 
 | Commande | Usage |
 |---|---|
-| `dbt parse` | Vérifier la structure et la configuration du projet |
-| `dbt compile` | Vérifier la compilation SQL sans construire les modèles |
+| `dbt parse` | Vérifier que le projet est correctement interprétable |
+| `dbt compile` | Compiler le SQL des modèles sans les construire dans Snowflake |
 | `dbt run` | Construire les modèles dans Snowflake |
 | `dbt test` | Exécuter les tests |
-| `dbt build` | Exécuter modèles et tests, dans l'ordre des dépendances |
+| `dbt build` | Construire les modèles et exécuter les tests, dans l'ordre des dépendances |
 
 ```bash
-dbt run
-# → modèles construits avec succès
-
-dbt test
-# → 37/37 tests réussis
+dbt build
 ```
 
 ---
 
-## 13. Ce qui a changé depuis l'ancienne architecture
+## 13. Graphe de dépendances
 
-| Avant | Maintenant | Pourquoi |
-|---|---|---|
-| `dim_zone` | `dim_geographie` | Hiérarchie région → département → FNID explicite, cohérente avec les données réelles |
-| `dim_annee` | `dim_temps` | Granularité mensuelle nécessaire au climat, construite uniquement à partir des mois réellement observés |
-| Pas de distinction explicite de grain | Grain documenté par domaine | Agriculture = 1 campagne, Climat = 1 station × 1 mois — deux réalités différentes, deux modélisations différentes |
-
-`dim_annee` et `dim_zone` ne sont plus des modèles actifs du projet et ne doivent plus être documentés comme tels.
-
----
-
-## 14. État final
+dbt déduit automatiquement l'ordre d'exécution à partir des `ref()` et `source()` de chaque modèle — personne n'a besoin de le déclarer à la main.
 
 ```mermaid
 flowchart LR
-    RAW["RAW<br/>4 sources"] --> STG["STAGING<br/>4 modèles"] --> INT["INTERMEDIATE<br/>1 modèle"] --> DIMFACT["DIMENSIONS + FACTS<br/>4 + 2"] --> MARTS["MARTS<br/>3 modèles"] --> TESTS["TESTS<br/>37/37"]
+    SA["staging agriculture<br/>(3 modèles)"] --> IA["int_agriculture"] --> DZ["dim_zone"] --> FA["fct_agriculture"]
+    SC["stg_climat"] --> DST["dim_station"] --> FC["fct_climat"]
+    FA --> IAC["int_agroclimat"]
+    FC --> IAC
+    FA --> MR["marts production"]
+    FC --> MC["mart_climat_station_annee"]
 
-    classDef etape fill:#DBEAFE,stroke:#1D4ED8,color:#1E3A8A
-    classDef fin fill:#DCFCE7,stroke:#15803D,color:#14532D,stroke-width:2px
-    class RAW,STG,INT,DIMFACT,MARTS etape
-    class TESTS fin
+    classDef agri fill:#D1FAE5,stroke:#047857,color:#065F46
+    classDef clim fill:#FEF9C3,stroke:#A16207,color:#713F12
+    classDef agroclim fill:#FEF3C7,stroke:#B45309,color:#78350F,stroke-width:2px
+    class SA,IA,DZ,FA,MR agri
+    class SC,DST,FC,MC clim
+    class IAC agroclim
 ```
 
-| Élément | Quantité |
-|---|---:|
-| Sources RAW | 4 |
-| Modèles Staging | 4 |
-| Modèles Intermediate | 1 |
-| Dimensions | 4 |
-| Tables de faits | 2 |
-| Marts analytiques | 3 |
-| Tests exécutés | 37 (37 réussis, 0 échec) |
+---
+
+## 14. Résumé pour un débutant
+
+```text
+RAW          → données brutes, jamais modifiées par dbt
+STAGING      → nettoyage et typage, une source à la fois
+INTERMEDIATE → fusion de l'agricole, puis rapprochement avec le climat
+MARTS        → dimensions, faits et agrégats prêts pour l'analyse
+TESTS        → vérification automatique que rien ne casse silencieusement
+```
+
+`dim_zone` (la région) est la seule dimension partagée entre agriculture et climat, parce que les stations météo ne sont connues qu'à ce niveau. `int_agroclimat` est le modèle qui exploite ce pont : il rapproche chaque campagne agricole des conditions climatiques réellement disponibles pendant sa durée, avec une couverture honnête de 59 % plutôt qu'une donnée inventée pour combler les trous.
 
 ---
 
 <div align="center">
 
-*Assaman & Suuf — DataFlow360 — dbt : transformation et modélisation (architecture actuelle)*
+*Assaman & Suuf — DataFlow360 — dbt : architecture actuelle*
 
 </div>

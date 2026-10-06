@@ -17,3 +17,30 @@ models:
       - name: produit
         tests:
           - not_null
+  # Une ligne représente une campagne agricole,
+  # une station de sa région et un mois climatique de la campagne.
+  - name: int_agroclimat
+    columns:
+      - name: agriculture_observation_id
+        tests:
+          - not_null
+
+      - name: zone_key
+        tests:
+          - not_null
+
+      - name: station_key
+        tests:
+          - not_null
+
+      - name: date_key
+        tests:
+          - not_null
+
+      - name: annee_climatique
+        tests:
+          - not_null
+
+      - name: mois_climatique
+        tests:
+          - not_null
