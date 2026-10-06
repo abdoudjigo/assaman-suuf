@@ -21,7 +21,7 @@ SELECT
         )
     ) AS observation_id,
 
-    MD5(fnid) AS geographie_key,
+    MD5(region) AS zone_key,
     MD5(produit) AS produit_key,
 
     fnid,
