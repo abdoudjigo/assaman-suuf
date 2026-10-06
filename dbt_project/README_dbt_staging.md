@@ -326,7 +326,7 @@ flowchart LR
 
 ## 10. Tests
 
-La dernière validation complète (`dbt build`) est passée avec succès, modèles et tests compris. Les tests couvrent :
+Le projet compte 114 tests de données. Ils couvrent :
 
 | Type | Vérifie |
 |---|---|
@@ -335,7 +335,24 @@ La dernière validation complète (`dbt build`) est passée avec succès, modèl
 | `relationships` | Qu'aucune ligne de fait ne pointe vers une dimension inexistante (`fct_agriculture.zone_key → dim_zone`, `fct_agriculture.produit_key → dim_produit`, `dim_station.zone_key → dim_zone`, `fct_climat.station_key → dim_station`, `fct_climat.date_key → dim_temps`) |
 | `accepted_values` | `source_system` limité à `POSTGRES`/`MONGO`/`KAFKA` ; `systeme_production` limité à `Pluvial`/`Irrigué`/`Décrue (PS)` |
 
-Tests SQL personnalisés : `assert_agriculture_positive_values`, `assert_agriculture_valid_months`, `assert_climat_valid_months`, `assert_mesures_agricoles_non_negatives`, `assert_mois_valides`.
+| `valeur_dans_intervalle` | Test générique maison (`tests/generic/`) : une colonne reste dans `[min, max]` — mois entre 1 et 12, mesures agricoles et précipitations ≥ 0, `nb_jours` ≤ 31, `trimestre` entre 1 et 4, au plus 12 relevés par station et par an |
+| `combinaison_unique` | Test générique maison : vérifie le grain d'un modèle — `fct_climat` (station × mois), `int_agroclimat` (campagne × station × mois), et chaque mart (produit × année, région × année, station × année) |
+
+Tests SQL personnalisés :
+
+| Test | Sévérité | Vérifie |
+|---|---|---|
+| `assert_agriculture_positive_values`, `assert_mesures_agricoles_non_negatives` | error | Superficie, production et rendement jamais négatifs |
+| `assert_agriculture_valid_months`, `assert_mois_valides`, `assert_climat_valid_months` | error | Mois compris entre 1 et 12 |
+| `assert_int_agriculture_complet` | error | L'union de `int_agriculture` ne perd ni ne duplique aucune ligne du staging, source par source |
+| `assert_mart_production_produit_reconcilie`, `assert_mart_production_region_reconcilie` | error | Les marts reprennent exactement le nombre d'observations et la production de `fct_agriculture` |
+| `assert_agroclimat_mois_dans_campagne` | error | Chaque mois climatique de `int_agroclimat` tombe l'année de récolte, entre semis et récolte |
+| `assert_agriculture_campagne_coherente` | warn | La récolte ne précède pas le semis |
+| `assert_agriculture_campagne_meme_annee` | warn | Aucune campagne ne traverse deux années civiles — hypothèse sur laquelle repose `int_agroclimat` (section 8) |
+| `assert_agriculture_rendement_coherent` | warn | `rendement_t_ha` ≈ `production_t / superficie_ha`, à 10 % près |
+| `assert_climat_temperatures_coherentes` | warn | `tmin ≤ tavg ≤ tmax` |
+
+**Choix de sévérité.** Avec `dbt build`, un test en `error` qui échoue bloque tous les modèles en aval. Les clés, le grain, la complétude et les règles structurelles sont donc en `error` ; les contrôles de plausibilité des mesures (qui dépendent de la qualité des données sources, pas du code dbt) sont en `warn` : ils signalent sans bloquer.
 
 `assert_climat_valid_months` contrôle les mois dans `dim_temps`, pas directement dans `fct_climat`, puisque `fct_climat` pointe vers `dim_temps` via `date_key` : la validité du mois se vérifie à la source de cette information, pas à chaque ligne de fait qui s'y réfère.
 
@@ -348,11 +365,10 @@ dbt_project/
 ├── dbt_project.yml
 ├── macros/
 ├── tests/                      # tests SQL personnalisés
-│   ├── assert_agriculture_positive_values.sql
-│   ├── assert_agriculture_valid_months.sql
-│   ├── assert_climat_valid_months.sql
-│   ├── assert_mesures_agricoles_non_negatives.sql
-│   └── assert_mois_valides.sql
+│   ├── generic/                # tests génériques réutilisables dans les schema.yml
+│   │   ├── combinaison_unique.sql
+│   │   └── valeur_dans_intervalle.sql
+│   └── assert_*.sql            # 13 tests singuliers
 └── models/
     ├── staging/
     │   ├── schema.yml

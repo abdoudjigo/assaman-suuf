@@ -10,9 +10,44 @@ models:
           - not_null
           - unique
 
+      - name: station
+        tests:
+          - not_null
+
       - name: annee
         tests:
           - not_null
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 1900
+                max_value: 2100
+
+      - name: mois
+        tests:
+          - not_null
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 1
+                max_value: 12
+
+      # Une précipitation mensuelle ne peut pas être négative.
+      - name: prcp_mm
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0
+              config:
+                severity: warn
+
+      # Nombre de jours de mesure dans le mois.
+      - name: nb_jours
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0
+                max_value: 31
+              config:
+                severity: warn
 
 
   # Agriculture provenant de PostgreSQL.
@@ -22,9 +57,29 @@ models:
         tests:
           - not_null
 
+      - name: region
+        tests:
+          - not_null:
+              config:
+                severity: warn
+
       - name: produit
         tests:
           - not_null
+
+      - name: mois_semis
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 1
+                max_value: 12
+
+      - name: mois_recolte
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 1
+                max_value: 12
 
       - name: systeme_production
         tests:
@@ -33,6 +88,24 @@ models:
                 values: ['Pluvial', 'Irrigué', 'Décrue (PS)']
               config:
                 severity: warn
+
+      - name: superficie_ha
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0
+
+      - name: production_t
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0
+
+      - name: rendement_t_ha
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0
 
 
   # Agriculture provenant de MongoDB.
@@ -42,9 +115,29 @@ models:
         tests:
           - not_null
 
+      - name: region
+        tests:
+          - not_null:
+              config:
+                severity: warn
+
       - name: produit
         tests:
           - not_null
+
+      - name: mois_semis
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 1
+                max_value: 12
+
+      - name: mois_recolte
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 1
+                max_value: 12
 
       - name: systeme_production
         tests:
@@ -53,6 +146,24 @@ models:
                 values: ['Pluvial', 'Irrigué', 'Décrue (PS)']
               config:
                 severity: warn
+
+      - name: superficie_ha
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0
+
+      - name: production_t
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0
+
+      - name: rendement_t_ha
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0
 
 
   # Agriculture provenant de Kafka.
@@ -62,9 +173,29 @@ models:
         tests:
           - not_null
 
+      - name: region
+        tests:
+          - not_null:
+              config:
+                severity: warn
+
       - name: produit
         tests:
           - not_null
+
+      - name: mois_semis
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 1
+                max_value: 12
+
+      - name: mois_recolte
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 1
+                max_value: 12
 
       - name: systeme_production
         tests:
@@ -73,3 +204,21 @@ models:
                 values: ['Pluvial', 'Irrigué', 'Décrue (PS)']
               config:
                 severity: warn
+
+      - name: superficie_ha
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0
+
+      - name: production_t
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0
+
+      - name: rendement_t_ha
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0

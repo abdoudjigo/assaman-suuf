@@ -10,10 +10,20 @@ models:
           - not_null
           - unique
 
+      - name: region
+        tests:
+          - not_null
+          - unique
+
   # Une ligne représente un produit agricole.
   - name: dim_produit
     columns:
       - name: produit_key
+        tests:
+          - not_null
+          - unique
+
+      - name: produit
         tests:
           - not_null
           - unique
@@ -26,6 +36,22 @@ models:
           - not_null
           - unique
 
+      - name: annee
+        tests:
+          - not_null
+
+      - name: mois
+        tests:
+          - not_null
+
+      - name: trimestre
+        tests:
+          - not_null
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 1
+                max_value: 4
+
   # Une ligne représente une station météorologique.
   - name: dim_station
     columns:
@@ -33,6 +59,10 @@ models:
         tests:
           - not_null
           - unique
+
+      - name: station
+        tests:
+          - not_null
 
       - name: zone_key
         tests:
@@ -47,6 +77,11 @@ models:
   # ils ne représentent pas une production mensuelle.
   - name: fct_agriculture
     columns:
+      - name: observation_id
+        tests:
+          - not_null
+          - unique
+
       - name: zone_key
         tests:
           - not_null
@@ -63,9 +98,25 @@ models:
                 to: ref('dim_produit')
                 field: produit_key
 
+      - name: source_system
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['POSTGRES', 'MONGO', 'KAFKA']
+
   # Une ligne représente une station pour une année et un mois.
   - name: fct_climat
+    tests:
+      - combinaison_unique:
+          arguments:
+            colonnes: ['station_key', 'date_key']
     columns:
+      - name: observation_id
+        tests:
+          - not_null
+          - unique
+
       - name: station_key
         tests:
           - not_null
@@ -81,3 +132,84 @@ models:
               arguments:
                 to: ref('dim_temps')
                 field: date_key
+
+  # Une ligne représente une station pour une année.
+  - name: mart_climat_station_annee
+    tests:
+      - combinaison_unique:
+          arguments:
+            colonnes: ['station_key', 'annee']
+    columns:
+      - name: station_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_station')
+                field: station_key
+
+      - name: annee
+        tests:
+          - not_null
+
+      # Au plus un relevé par mois et par station.
+      - name: nombre_observations
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 1
+                max_value: 12
+
+  # Une ligne représente un produit pour une année de récolte.
+  - name: mart_production_produit_annee
+    tests:
+      - combinaison_unique:
+          arguments:
+            colonnes: ['produit_key', 'annee']
+    columns:
+      - name: produit_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_produit')
+                field: produit_key
+
+      - name: production_totale_t
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0
+
+      - name: superficie_totale_ha
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0
+
+  # Une ligne représente une région pour une année de récolte.
+  - name: mart_production_region_annee
+    tests:
+      - combinaison_unique:
+          arguments:
+            colonnes: ['region', 'annee']
+    columns:
+      - name: region
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_zone')
+                field: region
+
+      - name: production_totale_t
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0
+
+      - name: superficie_totale_ha
+        tests:
+          - valeur_dans_intervalle:
+              arguments:
+                min_value: 0
