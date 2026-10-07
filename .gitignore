@@ -22,3 +22,5 @@ dbt_venv/
 dbt_project/logs/
 dbt_project/target/
 logs/
+api/.venv/
+secrets/
