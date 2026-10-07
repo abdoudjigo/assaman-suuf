@@ -4,5 +4,6 @@ httpx
 pandas
 snowflake-connector-python
 python-dotenv
+redis
 pytest
 pytest-cov
