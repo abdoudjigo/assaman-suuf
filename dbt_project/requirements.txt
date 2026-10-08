@@ -1,25 +1,12 @@
-# API
 fastapi
 uvicorn
-
-# HTTP client
 httpx
-
-# Data processing
 pandas
 numpy
-
-# Snowflake
 snowflake-connector-python
-
-# Cache
 redis
-
-# Validation / configuration
 pydantic
 pydantic-settings
 python-dotenv
-
-# Testing
 pytest
 pytest-cov
