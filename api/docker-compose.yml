@@ -1,0 +1,56 @@
+services:
+
+  api:
+    build: .
+    container_name: dataflow360-api
+    ports:
+      - "8001:8000"
+
+    env_file:
+      - .env
+
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      SNOWFLAKE_PRIVATE_KEY_PATH: /run/secrets/snowflake_private_key
+      SNOWFLAKE_PRIVATE_KEY_PASSWORD_FILE: /run/secrets/snowflake_private_key_password
+
+    secrets:
+      - snowflake_private_key
+      - snowflake_private_key_password
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+
+  redis:
+    image: redis:7-alpine
+    container_name: dataflow360-api-redis
+
+    restart: unless-stopped
+
+    volumes:
+      - redis_data:/data
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+
+volumes:
+  redis_data:
+
+
+secrets:
+
+  snowflake_private_key:
+    file: ./secrets/snowflake_api_key.pem
+
+  snowflake_private_key_password:
+    file: ./secrets/snowflake_api_key_password.txt
