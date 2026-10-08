@@ -411,7 +411,7 @@ vars:
   # Dernière année d'entraînement : les années suivantes forment le test,
   # et les normales climatiques ne sont calculées que jusqu'à cette année.
   # À fixer selon la plage réelle des données (garder ~20 % des années en test).
-  ml_annee_fin_train: 2007
+  ml_annee_fin_train: 2010
 ```
 
 ### `models/ml/schema.yml`
