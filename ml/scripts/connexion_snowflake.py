@@ -34,6 +34,7 @@ def connexion(schema: str = "ML"):
         "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE", "DATAFLOW360_WH"),
         "database": os.getenv("SNOWFLAKE_DATABASE", "DATAFLOW360"),
         "schema": schema,
+        "paramstyle": "qmark",  # même style (?) que la connexion de l'API
     }
 
     return snowflake.connector.connect(**parametres)
