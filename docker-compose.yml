@@ -2,3 +2,4 @@ include:
   - ./orchestration/docker-compose.yaml
   - ./ingestion/kafka_source/docker-compose.yml
   - ./ingestion/mongodb_source/docker-compose.yml
+  - ./ml/docker-compose.yml

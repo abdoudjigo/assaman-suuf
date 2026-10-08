@@ -1,0 +1,10 @@
+# Dépendances d'exécution du modèle (image Docker ml et API).
+# Versions figées : le .pkl doit être relu avec la même version de scikit-learn
+# que celle qui l'a entraîné.
+pandas==2.3.3
+numpy==2.5.3
+pyarrow==23.0.1
+scikit-learn==1.9.1
+joblib==1.6.0
+snowflake-connector-python[pandas]==4.8.0
+python-dotenv==1.2.4

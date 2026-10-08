@@ -1,0 +1,28 @@
+# Modèle de simulation du rendement.
+#
+#   docker compose run --rm ml-export        # Snowflake → data/processed/*.parquet
+#   docker compose run --rm ml-entrainement  # → ml/models/modele_rendement.pkl
+#
+# Les identifiants Snowflake viennent du .env à la racine du projet.
+
+x-ml: &ml
+  build:
+    context: ..
+    dockerfile: ml/Dockerfile
+  image: dataflow360-ml
+  env_file: ../.env
+  volumes:
+    - ../data/processed:/app/data/processed
+    - ./models:/app/ml/models
+  profiles: ["ml"]
+
+services:
+  ml-export:
+    <<: *ml
+    container_name: dataflow360-ml-export
+    command: ["python", "-m", "ml.scripts.export_dataset"]
+
+  ml-entrainement:
+    <<: *ml
+    container_name: dataflow360-ml-entrainement
+    command: ["python", "-m", "ml.scripts.entrainement"]

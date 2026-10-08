@@ -1,28 +1,10 @@
-# Data manipulation
-numpy
-pandas
+# Modèle de simulation du rendement (régression linéaire, Ridge, Lasso)
+-r requirements-runtime.txt
 
-# Scientific computing
-scipy
-
-# Machine Learning
-scikit-learn
-xgboost
-
-# Model persistence
-joblib
-
-# Visualization / evaluation
-matplotlib
-seaborn
-
-# Data warehouse
-snowflake-connector-python
-
-# Configuration
-python-dotenv
-pyyaml
-
-# Experimentation
+# Notebooks
 jupyter
-ipykernel
+matplotlib
+
+# Tests
+pytest
+pytest-cov
