@@ -10,6 +10,7 @@ Ce fichier :
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from routers.predictions import router as predictions_router
 from routers.climat import router as climat_router
 from routers.agriculture import router as agriculture_router
 from routers.health import router as health_router
@@ -50,3 +51,4 @@ app.include_router(agroclimat_router)
 app.include_router(zones_router)
 app.include_router(stations_router)
 app.include_router(produits_router)
+app.include_router(predictions_router)

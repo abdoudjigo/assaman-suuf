@@ -66,11 +66,11 @@ kind: Service
 metadata:
   name: dataflow360-api-service
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: dataflow360-api
   ports:
-    - port: 8001
+    - port: 8000
       targetPort: 8000
 
 ---
