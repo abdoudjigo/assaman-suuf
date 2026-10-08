@@ -1,40 +1,87 @@
-"""Connexion à Snowflake à partir du fichier .env du projet.
-
-Reprend les variables déjà utilisées par l'ingestion et la CI :
-SNOWFLAKE_USER, SNOWFLAKE_PASSWORD, SNOWFLAKE_ACCOUNT, et en option
-SNOWFLAKE_ROLE, SNOWFLAKE_WAREHOUSE, SNOWFLAKE_DATABASE.
-
-SNOWFLAKE_AUTHENTICATOR permet d'utiliser l'authentification du compte
-(ex. "username_password_mfa" pour une validation MFA par notification).
-"""
+"""Connexion Snowflake utilisée par les scripts ML."""
 
 import os
+from pathlib import Path
 
 import snowflake.connector
 from dotenv import load_dotenv
 
 from ml.scripts.config import RACINE_PROJET
 
-VARIABLES_OBLIGATOIRES = ["SNOWFLAKE_USER", "SNOWFLAKE_PASSWORD", "SNOWFLAKE_ACCOUNT"]
 
+def _lire_secret(path: Path) -> str:
+    """Lit un secret dans un fichier."""
+    if not path.exists():
+        raise RuntimeError(f"Fichier secret introuvable : {path}")
+    return path.read_text().strip()
+
+
+#def _chemin_secret(variable: str, defaut: Path) -> Path:
+#    """Retourne le chemin configuré ou le chemin local par défaut."""
+#    valeur = os.getenv(variable)
+#    return Path(valeur) if valeur else defaut
+
+def _chemin_secret(variable: str, defaut: Path) -> Path:
+    """Retourne un chemin absolu pour un secret."""
+    valeur = os.getenv(variable)
+
+    if not valeur:
+        return defaut
+
+    path = Path(valeur)
+
+    if path.is_absolute():
+        return path
+
+    return RACINE_PROJET / "api" / path
 
 def connexion(schema: str = "ML"):
-    """Ouvre une connexion Snowflake. Les identifiants viennent de .env."""
-    load_dotenv(RACINE_PROJET / ".env")
+    """
+    Ouvre une connexion Snowflake avec l'authentification RSA/JWT.
 
-    manquantes = [v for v in VARIABLES_OBLIGATOIRES if not os.getenv(v)]
+    Les paramètres non sensibles viennent de api/.env.
+    Les deux fichiers de clé restent dans api/secrets/.
+    """
+
+    load_dotenv(RACINE_PROJET / "api" / ".env")
+
+    obligatoires = [
+        "SNOWFLAKE_USER",
+        "SNOWFLAKE_ACCOUNT",
+        "SNOWFLAKE_ROLE",
+        "SNOWFLAKE_WAREHOUSE",
+        "SNOWFLAKE_DATABASE",
+    ]
+
+    manquantes = [v for v in obligatoires if not os.getenv(v)]
     if manquantes:
-        raise RuntimeError(f"Variables manquantes dans .env : {', '.join(manquantes)}")
+        raise RuntimeError(
+            "Variables manquantes dans api/.env : "
+            + ", ".join(manquantes)
+        )
 
-    parametres = {
-        "user": os.environ["SNOWFLAKE_USER"],
-        "password": os.environ["SNOWFLAKE_PASSWORD"],
-        "account": os.environ["SNOWFLAKE_ACCOUNT"],
-        "role": os.getenv("SNOWFLAKE_ROLE", "SYSADMIN"),
-        "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE", "DATAFLOW360_WH"),
-        "database": os.getenv("SNOWFLAKE_DATABASE", "DATAFLOW360"),
-        "schema": schema,
-        "paramstyle": "qmark",  # même style (?) que la connexion de l'API
-    }
+    cle_privee = _chemin_secret(
+        "SNOWFLAKE_PRIVATE_KEY_PATH",
+        RACINE_PROJET / "api" / "secrets" / "snowflake_api_key.pem",
+    )
 
-    return snowflake.connector.connect(**parametres)
+    mot_de_passe_cle = _chemin_secret(
+        "SNOWFLAKE_PRIVATE_KEY_PASSWORD_FILE",
+        RACINE_PROJET
+        / "api"
+        / "secrets"
+        / "snowflake_api_key_password.txt",
+    )
+
+    return snowflake.connector.connect(
+        account=os.environ["SNOWFLAKE_ACCOUNT"],
+        user=os.environ["SNOWFLAKE_USER"],
+        authenticator="SNOWFLAKE_JWT",
+        private_key_file=str(cle_privee),
+        private_key_file_pwd=_lire_secret(mot_de_passe_cle),
+        role=os.environ["SNOWFLAKE_ROLE"],
+        warehouse=os.environ["SNOWFLAKE_WAREHOUSE"],
+        database=os.environ["SNOWFLAKE_DATABASE"],
+        schema=schema,
+        paramstyle="qmark",
+    )

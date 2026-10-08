@@ -1,6 +1,6 @@
 {
-  "version": "20261008_004640",
-  "dataset": "ml_rendement_campagne_20261007.parquet",
+  "version": "20261008_151344",
+  "dataset": "ml_rendement_campagne_20261008.parquet",
   "lignes": {
     "train": 6456,
     "test": 1241,
