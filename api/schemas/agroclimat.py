@@ -2,8 +2,6 @@
 Schémas de réponse de l'API Agroclimat.
 """
 
-from typing import Optional
-
 from pydantic import BaseModel
 
 from schemas.common import Pagination
@@ -12,46 +10,46 @@ from schemas.common import Pagination
 class AgroclimatItem(BaseModel):
     """Une campagne agricole enrichie par les indicateurs climatiques."""
 
-    observation_id: Optional[str] = None
+    observation_id: str | None = None
 
-    zone_key: Optional[str] = None
-    produit_key: Optional[str] = None
-    fnid: Optional[str] = None
+    zone_key: str | None = None
+    produit_key: str | None = None
+    fnid: str | None = None
 
-    region: Optional[str] = None
-    departement: Optional[str] = None
-    produit: Optional[str] = None
-    categorie: Optional[str] = None
+    region: str | None = None
+    departement: str | None = None
+    produit: str | None = None
+    categorie: str | None = None
 
-    annee: Optional[int] = None
-    saison: Optional[str] = None
-    systeme_production: Optional[str] = None
+    annee: int | None = None
+    saison: str | None = None
+    systeme_production: str | None = None
 
-    mois_semis: Optional[int] = None
-    mois_recolte: Optional[int] = None
-    duree_campagne_mois: Optional[int] = None
+    mois_semis: int | None = None
+    mois_recolte: int | None = None
+    duree_campagne_mois: int | None = None
 
-    indicateur_qualite: Optional[int] = None
+    indicateur_qualite: int | None = None
 
-    superficie_ha: Optional[float] = None
-    production_t: Optional[float] = None
-    rendement_t_ha: Optional[float] = None
+    superficie_ha: float | None = None
+    production_t: float | None = None
+    rendement_t_ha: float | None = None
 
-    a_climat: Optional[bool] = None
-    nb_mois_climat: Optional[int] = None
-    taux_couverture_climat: Optional[float] = None
+    a_climat: bool | None = None
+    nb_mois_climat: int | None = None
+    taux_couverture_climat: float | None = None
 
-    pluie_cumul_mm: Optional[float] = None
-    pluie_mois_max_mm: Optional[float] = None
-    nb_mois_secs: Optional[int] = None
-    pluie_anomalie_mm: Optional[float] = None
+    pluie_cumul_mm: float | None = None
+    pluie_mois_max_mm: float | None = None
+    nb_mois_secs: int | None = None
+    pluie_anomalie_mm: float | None = None
 
-    tavg_moyenne: Optional[float] = None
-    tmax_max: Optional[float] = None
-    tmin_min: Optional[float] = None
-    tavg_anomalie: Optional[float] = None
+    tavg_moyenne: float | None = None
+    tmax_max: float | None = None
+    tmin_min: float | None = None
+    tavg_anomalie: float | None = None
 
-    source_system: Optional[str] = None
+    source_system: str | None = None
 
 
 class AgroclimatResponse(BaseModel):

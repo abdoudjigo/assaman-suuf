@@ -56,13 +56,19 @@ def _climat_observe(
         climat = simulation.lire_climat_observe(region, annee, saison, conn=conn)
     except Exception:  # Snowflake injoignable : on continue avec la normale.
         logger.warning("Climat observé indisponible", exc_info=True)
-        return None, "Climat observé indisponible (erreur de lecture) : normale de la région utilisée."
+        return (
+            None,
+            "Climat observé indisponible (erreur de lecture) : normale de la région utilisée.",
+        )
     finally:
         if conn is not None:
             conn.close()
 
     if climat is None:
-        return None, "Campagne non (entièrement) mesurée : normale de la région utilisée."
+        return (
+            None,
+            "Campagne non (entièrement) mesurée : normale de la région utilisée.",
+        )
     _CACHE_CLIMAT[cle] = climat
     return climat, None
 

@@ -11,7 +11,6 @@ from typing import Any
 
 import redis
 
-
 # Durée de conservation d'une réponse en cache.
 # 300 secondes = 5 minutes.
 CACHE_TTL = int(os.getenv("CACHE_TTL", "300"))

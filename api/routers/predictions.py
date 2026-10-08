@@ -7,8 +7,6 @@ L'API ne calcule rien : elle appelle ml.service_prediction et met en cache.
 import logging
 
 from fastapi import APIRouter, HTTPException
-
-from ml import service_prediction
 from redis_client import get_cached, make_cache_key, set_cached
 from schemas.predictions import (
     PredictionOptions,
@@ -17,6 +15,7 @@ from schemas.predictions import (
 )
 from snowflake_client import get_snowflake_connection
 
+from ml import service_prediction
 
 logger = logging.getLogger(__name__)
 

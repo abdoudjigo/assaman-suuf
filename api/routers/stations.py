@@ -4,14 +4,11 @@ Routes REST pour les stations climatiques.
 
 import logging
 import math
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
-
 from redis_client import get_cached, make_cache_key, set_cached
 from schemas.stations import StationResponse
 from snowflake_client import get_snowflake_connection
-
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +27,11 @@ router = APIRouter(
 def get_stations(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
-    zone_key: Optional[str] = Query(
+    zone_key: str | None = Query(
         None,
         description="Filtrer sur une zone.",
     ),
-    search: Optional[str] = Query(
+    search: str | None = Query(
         None,
         description="Rechercher une station par code ou nom.",
     ),
@@ -49,9 +46,7 @@ def get_stations(
         params.append(zone_key)
 
     if search is not None:
-        filters.append(
-            "(s.STATION ILIKE ? OR s.STATION_NOM ILIKE ?)"
-        )
+        filters.append("(s.STATION ILIKE ? OR s.STATION_NOM ILIKE ?)")
 
         value = f"%{search}%"
         params.extend([value, value])
@@ -160,9 +155,7 @@ def get_stations(
         return response
 
     except Exception as exc:
-        logger.exception(
-            "Erreur sur GET /api/v1/stations"
-        )
+        logger.exception("Erreur sur GET /api/v1/stations")
 
         raise HTTPException(
             status_code=500,

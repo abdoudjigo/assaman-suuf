@@ -2,8 +2,6 @@
 Schémas de réponse de l'API Climat.
 """
 
-from typing import Optional
-
 from pydantic import BaseModel
 
 from schemas.common import Pagination
@@ -12,27 +10,27 @@ from schemas.common import Pagination
 class ClimatItem(BaseModel):
     """Une observation climatique station × mois."""
 
-    observation_id: Optional[str] = None
+    observation_id: str | None = None
 
-    station_key: Optional[str] = None
-    station: Optional[str] = None
-    station_nom: Optional[str] = None
+    station_key: str | None = None
+    station: str | None = None
+    station_nom: str | None = None
 
-    zone_key: Optional[str] = None
-    region: Optional[str] = None
+    zone_key: str | None = None
+    region: str | None = None
 
-    date_key: Optional[int] = None
-    annee: Optional[int] = None
-    mois: Optional[int] = None
-    nom_mois: Optional[str] = None
-    trimestre: Optional[int] = None
-    est_hivernage: Optional[bool] = None
+    date_key: int | None = None
+    annee: int | None = None
+    mois: int | None = None
+    nom_mois: str | None = None
+    trimestre: int | None = None
+    est_hivernage: bool | None = None
 
-    tavg: Optional[float] = None
-    tmin: Optional[float] = None
-    tmax: Optional[float] = None
-    prcp_mm: Optional[float] = None
-    nb_jours: Optional[int] = None
+    tavg: float | None = None
+    tmin: float | None = None
+    tmax: float | None = None
+    prcp_mm: float | None = None
+    nb_jours: int | None = None
 
 
 class ClimatResponse(BaseModel):
