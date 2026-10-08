@@ -1,4 +1,4 @@
-"""Endpoints de simulation (la logique ML est remplacée par des doublures)."""
+"""Endpoints de prédiction (ml.service_prediction et Redis sont remplacés par des doublures)."""
 
 import sys
 from pathlib import Path
@@ -7,18 +7,21 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+RACINE = Path(__file__).resolve().parents[2]
+# Racine pour le paquet ml, api/ pour les imports à plat (`from routers...`),
+# comme dans l'image Docker.
+sys.path[:0] = [str(RACINE), str(RACINE / "api")]
 
-from api.main import app
+from main import app
 
 client = TestClient(app)
-URL = "/api/v1/predictions/simulation"
-ENTREE = {"produit": "Mil", "region": "Kaolack", "superficie_ha": 1000, "annee": 2027}
+URL = "/api/v1/predictions"
+ENTREE = {"produit": "Mil", "region": "Kaolack", "superficie_ha": 1000, "annee": 2015}
 REPONSE = {
     "rendement_t_ha": 0.7,
     "production_t": 700.0,
     "climat": {
-        "source": "normale_region",
+        "source": "observe",
         "pluie_cumul_mm": 500.0,
         "tavg_moyenne": 29.0,
         "pluie_normale_mm": 500.0,
@@ -29,7 +32,17 @@ REPONSE = {
         "erreur_moyenne_test_t_ha": 0.16,
     },
     "modele_version": "test",
+    "avertissements": [],
 }
+
+
+@pytest.fixture(autouse=True)
+def sans_redis():
+    """Cache vide ; set_cached est observable."""
+    with patch("routers.predictions.get_cached", return_value=None), patch(
+        "routers.predictions.set_cached"
+    ) as set_cached:
+        yield set_cached
 
 
 def test_health():
@@ -43,46 +56,58 @@ def test_options():
         "saison": ["Principale"],
         "systeme_production": ["Pluvial"],
     }
-    with patch("ml.scripts.simulation.valeurs_acceptees", return_value=valeurs):
+    with patch("ml.service_prediction.options", return_value=valeurs):
         assert client.get(f"{URL}/options").json() == valeurs
 
 
-def test_simulation_cherche_le_climat_observe_sans_pluie_saisie():
-    with patch(
-        "ml.scripts.simulation.lire_climat_observe", return_value=None
-    ) as lire, patch("ml.scripts.simulation.simuler", return_value=REPONSE) as simuler:
-        r = client.post(URL, json=ENTREE)
+def test_options_sans_modele_renvoie_503():
+    with patch("ml.service_prediction.options", side_effect=FileNotFoundError):
+        assert client.get(f"{URL}/options").status_code == 503
+
+
+def test_rendement_appelle_le_service_et_met_en_cache(sans_redis):
+    with patch("ml.service_prediction.predire", return_value=REPONSE) as predire:
+        r = client.post(f"{URL}/rendement", json=ENTREE)
     assert r.status_code == 200
-    lire.assert_called_once_with("Kaolack", 2027, "Principale")
-    assert simuler.call_args.kwargs["climat_observe"] is None
+    assert r.json() == REPONSE
+    kwargs = predire.call_args.kwargs
+    assert kwargs["produit"] == "Mil" and kwargs["saison"] == "Principale"
+    assert callable(kwargs["ouvrir_connexion"])
+    sans_redis.assert_called_once()
 
 
-def test_pluie_saisie_ne_consulte_pas_snowflake():
-    with patch("ml.scripts.simulation.lire_climat_observe") as lire, patch(
-        "ml.scripts.simulation.simuler", return_value=REPONSE
-    ):
-        client.post(URL, json={**ENTREE, "pluie_cumul_mm": 400})
-    lire.assert_not_called()
+def test_reponse_en_cache_ne_rappelle_pas_le_modele():
+    with patch("routers.predictions.get_cached", return_value=REPONSE), patch(
+        "ml.service_prediction.predire"
+    ) as predire:
+        assert client.post(f"{URL}/rendement", json=ENTREE).json() == REPONSE
+    predire.assert_not_called()
 
 
-def test_snowflake_indisponible_ne_bloque_pas():
-    with patch(
-        "ml.scripts.simulation.lire_climat_observe", side_effect=RuntimeError
-    ), patch("ml.scripts.simulation.simuler", return_value=REPONSE):
-        assert client.post(URL, json=ENTREE).status_code == 200
+def test_climat_indisponible_pas_mis_en_cache(sans_redis):
+    reponse = {**REPONSE, "avertissements": ["Climat observé indisponible (...)"]}
+    with patch("ml.service_prediction.predire", return_value=reponse):
+        assert client.post(f"{URL}/rendement", json=ENTREE).status_code == 200
+    sans_redis.assert_not_called()
 
 
 def test_valeur_inconnue_renvoie_422():
-    with patch("ml.scripts.simulation.lire_climat_observe", return_value=None), patch(
-        "ml.scripts.simulation.simuler", side_effect=ValueError("produit inconnu")
+    with patch(
+        "ml.service_prediction.predire", side_effect=ValueError("produit inconnu")
     ):
-        r = client.post(URL, json={**ENTREE, "produit": "Mais"})
+        r = client.post(f"{URL}/rendement", json={**ENTREE, "produit": "Mais"})
     assert r.status_code == 422
     assert "produit inconnu" in r.json()["detail"]
 
 
-@pytest.mark.parametrize(
-    "champ, valeur", [("superficie_ha", 0), ("pluie_cumul_mm", -5)]
-)
+def test_modele_absent_renvoie_503():
+    with patch("ml.service_prediction.predire", side_effect=FileNotFoundError):
+        assert client.post(f"{URL}/rendement", json=ENTREE).status_code == 503
+
+
+@pytest.mark.parametrize("champ, valeur", [("superficie_ha", 0), ("annee", 1900)])
 def test_valeurs_numeriques_controlees(champ, valeur):
-    assert client.post(URL, json={**ENTREE, champ: valeur}).status_code == 422
+    with patch("ml.service_prediction.predire") as predire:
+        r = client.post(f"{URL}/rendement", json={**ENTREE, champ: valeur})
+    assert r.status_code == 422
+    predire.assert_not_called()

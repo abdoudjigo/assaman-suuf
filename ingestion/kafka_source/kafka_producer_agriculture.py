@@ -20,7 +20,9 @@ import time
 from kafka import KafkaProducer
 from kafka.errors import KafkaError
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger("kafka_producer_agriculture")
 
 DEFAULT_TOPIC = "topic_kafka_agriculture"
@@ -42,7 +44,9 @@ def build_producer(bootstrap_servers: str) -> KafkaProducer:
 def on_send_success(record_metadata):
     logger.debug(
         "OK topic=%s partition=%s offset=%s",
-        record_metadata.topic, record_metadata.partition, record_metadata.offset,
+        record_metadata.topic,
+        record_metadata.partition,
+        record_metadata.offset,
     )
 
 
@@ -50,7 +54,9 @@ def on_send_error(excp):
     logger.error("Echec d'envoi du message", exc_info=excp)
 
 
-def replay_jsonl(file_path: str, topic: str, bootstrap_servers: str, delay: float, dry_run: bool) -> None:
+def replay_jsonl(
+    file_path: str, topic: str, bootstrap_servers: str, delay: float, dry_run: bool
+) -> None:
     # En mode simulation, ne pas ouvrir de connexion au broker.
     producer = None if dry_run else build_producer(bootstrap_servers)
 
@@ -65,7 +71,9 @@ def replay_jsonl(file_path: str, topic: str, bootstrap_servers: str, delay: floa
             try:
                 event = json.loads(line)
             except json.JSONDecodeError as exc:
-                logger.warning("Ligne %d ignorée (JSON invalide) : %s", line_number, exc)
+                logger.warning(
+                    "Ligne %d ignorée (JSON invalide) : %s", line_number, exc
+                )
                 errors += 1
                 continue
 
@@ -73,7 +81,9 @@ def replay_jsonl(file_path: str, topic: str, bootstrap_servers: str, delay: floa
             value = event.get("data")
 
             if key is None or value is None:
-                logger.warning("Ligne %d ignorée (champ 'key' ou 'data' manquant)", line_number)
+                logger.warning(
+                    "Ligne %d ignorée (champ 'key' ou 'data' manquant)", line_number
+                )
                 errors += 1
                 continue
 
@@ -99,19 +109,31 @@ def replay_jsonl(file_path: str, topic: str, bootstrap_servers: str, delay: floa
 
 def parse_args() -> argparse.Namespace:
     # Centralise les options de rejeu et leurs valeurs par défaut dans l'interface CLI.
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--file", required=True, help="Chemin du fichier JSONL à rejouer")
-    parser.add_argument("--topic", default=DEFAULT_TOPIC, help=f"Topic Kafka cible (défaut: {DEFAULT_TOPIC})")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument(
-        "--bootstrap-servers", default="localhost:9092",
+        "--file", required=True, help="Chemin du fichier JSONL à rejouer"
+    )
+    parser.add_argument(
+        "--topic",
+        default=DEFAULT_TOPIC,
+        help=f"Topic Kafka cible (défaut: {DEFAULT_TOPIC})",
+    )
+    parser.add_argument(
+        "--bootstrap-servers",
+        default="localhost:9092",
         help="Adresse(s) du cluster Kafka (défaut: localhost:9092)",
     )
     parser.add_argument(
-        "--delay", type=float, default=0.0,
+        "--delay",
+        type=float,
+        default=0.0,
         help="Pause en secondes entre deux publications, pour simuler un flux (défaut: 0 = aussi vite que possible)",
     )
     parser.add_argument(
-        "--dry-run", action="store_true",
+        "--dry-run",
+        action="store_true",
         help="N'envoie rien à Kafka, se contente de lire et lister les events (test sans broker)",
     )
     return parser.parse_args()

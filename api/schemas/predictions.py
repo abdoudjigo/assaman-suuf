@@ -2,8 +2,6 @@
 Schémas de l'API Prédictions.
 """
 
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -31,8 +29,8 @@ class ClimatUtilise(BaseModel):
 class Reperes(BaseModel):
     """Repères pour situer la prédiction."""
 
-    rendement_moyen_historique_t_ha: Optional[float] = None
-    erreur_moyenne_test_t_ha: Optional[float] = None
+    rendement_moyen_historique_t_ha: float | None = None
+    erreur_moyenne_test_t_ha: float | None = None
 
 
 class PredictionResponse(BaseModel):

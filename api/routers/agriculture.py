@@ -4,14 +4,11 @@ Routes REST pour les données agricoles de DataFlow360.
 
 import logging
 import math
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
-
 from redis_client import get_cached, make_cache_key, set_cached
 from schemas.agriculture import AgricultureResponse
 from snowflake_client import get_snowflake_connection
-
 
 logger = logging.getLogger(__name__)
 
@@ -84,19 +81,19 @@ def get_agriculture(
         le=200,
         description="Nombre maximum de lignes par page.",
     ),
-    fnid: Optional[str] = Query(
+    fnid: str | None = Query(
         None,
         description="Filtrer sur un FNID.",
     ),
-    produit_key: Optional[str] = Query(
+    produit_key: str | None = Query(
         None,
         description="Filtrer sur une clé produit.",
     ),
-    annee_semis: Optional[int] = Query(
+    annee_semis: int | None = Query(
         None,
         description="Filtrer sur l'année de semis.",
     ),
-    systeme_production: Optional[str] = Query(
+    systeme_production: str | None = Query(
         None,
         description="Filtrer sur le système de production.",
     ),
@@ -125,9 +122,7 @@ def get_agriculture(
         params.append(annee_semis)
 
     if systeme_production is not None:
-        filters.append(
-            "UPPER(a.SYSTEME_PRODUCTION) = UPPER(?)"
-        )
+        filters.append("UPPER(a.SYSTEME_PRODUCTION) = UPPER(?)")
         params.append(systeme_production)
 
     where_clause = ""
@@ -138,7 +133,7 @@ def get_agriculture(
     offset = (page - 1) * page_size
 
     # CACHE REDIS
-    #On construit une clé unique à partir des paramètres de la
+    # On construit une clé unique à partir des paramètres de la
     # requête. Deux requêtes identiques auront donc la même clé.
     cache_key = make_cache_key(
         "agriculture",
@@ -289,9 +284,7 @@ def get_agriculture(
         return response
 
     except Exception as exc:
-        logger.exception(
-            "Erreur Snowflake sur GET /api/v1/agriculture"
-        )
+        logger.exception("Erreur Snowflake sur GET /api/v1/agriculture")
 
         raise HTTPException(
             status_code=500,

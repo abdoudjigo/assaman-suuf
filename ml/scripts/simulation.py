@@ -69,7 +69,11 @@ def lire_climat_observe(region: str, annee: int, saison: str, conn=None) -> dict
         from ml.scripts.connexion_snowflake import connexion
 
         with connexion(schema="MARTS") as ma_conn:
-            mois = ma_conn.cursor().execute(requete, (station, annee, debut, fin)).fetchall()
+            mois = (
+                ma_conn.cursor()
+                .execute(requete, (station, annee, debut, fin))
+                .fetchall()
+            )
 
     pluies = [float(p) for _, p, _ in mois if p is not None]
     if len(pluies) < fin - debut + 1:

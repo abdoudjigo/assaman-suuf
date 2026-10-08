@@ -16,7 +16,9 @@ def test_regle_de_choix_du_modele(monkeypatch):
 
     scores = iter([0.60, 0.55, 0.50, 0.58])
     monkeypatch.setattr(
-        entrainement, "CANDIDATS", {"lineaire": [None], "ridge": [1.0, 10.0], "lasso": [0.01]}
+        entrainement,
+        "CANDIDATS",
+        {"lineaire": [None], "ridge": [1.0, 10.0], "lasso": [0.01]},
     )
     monkeypatch.setattr(entrainement, "construire_modele", lambda n, a: _Faux())
     monkeypatch.setattr(entrainement, "metriques", lambda r, p: {"mae": next(scores)})

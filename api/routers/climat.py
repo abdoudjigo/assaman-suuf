@@ -4,14 +4,11 @@ Routes REST pour les données climatiques de DataFlow360.
 
 import logging
 import math
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
-
 from redis_client import get_cached, make_cache_key, set_cached
 from schemas.climat import ClimatResponse
 from snowflake_client import get_snowflake_connection
-
 
 logger = logging.getLogger(__name__)
 
@@ -43,19 +40,19 @@ def get_climat(
         le=200,
         description="Nombre maximum de lignes par page.",
     ),
-    station_key: Optional[str] = Query(
+    station_key: str | None = Query(
         None,
         description="Filtrer sur une station.",
     ),
-    zone_key: Optional[str] = Query(
+    zone_key: str | None = Query(
         None,
         description="Filtrer sur une zone.",
     ),
-    annee: Optional[int] = Query(
+    annee: int | None = Query(
         None,
         description="Filtrer sur l'année.",
     ),
-    mois: Optional[int] = Query(
+    mois: int | None = Query(
         None,
         ge=1,
         le=12,
@@ -245,9 +242,7 @@ def get_climat(
         return response
 
     except Exception as exc:
-        logger.exception(
-            "Erreur sur GET /api/v1/climat"
-        )
+        logger.exception("Erreur sur GET /api/v1/climat")
 
         raise HTTPException(
             status_code=500,

@@ -11,7 +11,6 @@ from pathlib import Path
 import snowflake.connector
 from dotenv import load_dotenv
 
-
 # Charge le fichier .env en développement local.
 load_dotenv()
 
@@ -28,16 +27,12 @@ def _read_secret(path_variable: str) -> str:
     path = os.getenv(path_variable)
 
     if not path:
-        raise RuntimeError(
-            f"La variable {path_variable} n'est pas configurée."
-        )
+        raise RuntimeError(f"La variable {path_variable} n'est pas configurée.")
 
     secret_path = Path(path)
 
     if not secret_path.exists():
-        raise RuntimeError(
-            f"Le fichier secret {secret_path} est introuvable."
-        )
+        raise RuntimeError(f"Le fichier secret {secret_path} est introuvable.")
 
     return secret_path.read_text().strip()
 
@@ -55,13 +50,9 @@ def get_snowflake_connection():
     private_key_path = os.getenv("SNOWFLAKE_PRIVATE_KEY_PATH")
 
     if not private_key_path:
-        raise RuntimeError(
-            "SNOWFLAKE_PRIVATE_KEY_PATH n'est pas configurée."
-        )
+        raise RuntimeError("SNOWFLAKE_PRIVATE_KEY_PATH n'est pas configurée.")
 
-    passphrase = _read_secret(
-        "SNOWFLAKE_PRIVATE_KEY_PASSWORD_FILE"
-    )
+    passphrase = _read_secret("SNOWFLAKE_PRIVATE_KEY_PASSWORD_FILE")
 
     return snowflake.connector.connect(
         account=os.environ["SNOWFLAKE_ACCOUNT"],
