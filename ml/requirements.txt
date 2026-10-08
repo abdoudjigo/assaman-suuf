@@ -1,0 +1,28 @@
+# Data manipulation
+numpy
+pandas
+
+# Scientific computing
+scipy
+
+# Machine Learning
+scikit-learn
+xgboost
+
+# Model persistence
+joblib
+
+# Visualization / evaluation
+matplotlib
+seaborn
+
+# Data warehouse
+snowflake-connector-python
+
+# Configuration
+python-dotenv
+pyyaml
+
+# Experimentation
+jupyter
+ipykernel
