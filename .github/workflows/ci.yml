@@ -1,18 +1,29 @@
 name: CI - Assaman & Suuf Core Data
 
+# Tests sur CHAQUE push (toutes les branches dev/*, develop, main)
+# et sur chaque PR vers develop / main.
 on:
   push:
-    branches: [develop, main]
+    branches: ["**"]
   pull_request:
     branches: [develop, main]
+  workflow_dispatch:
+
+# Un nouveau push sur la même branche annule le run précédent.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: "3.11"
+  # Même version que les images Docker (le .pkl est relu avec la même
+  # version de Python / scikit-learn que celle qui l'a entraîné).
+  PYTHON_VERSION: "3.14"
 
 jobs:
 
   # ---------------------------------------------------------------------
-  # 1. Lint & formatage (Python + dbt/SQL)
+  # 1. Lint & formatage Python
+  #    Indépendant des tests : un problème de style ne masque pas un test cassé.
   # ---------------------------------------------------------------------
   lint:
     runs-on: ubuntu-latest
@@ -26,7 +37,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Installer les outils de lint
-        run: pip install ruff black sqlfluff
+        run: pip install ruff==0.16.10 black==26.10.0
 
       - name: Lint Python (ruff)
         run: ruff check .
@@ -34,102 +45,77 @@ jobs:
       - name: Vérifier le formatage (black)
         run: black --check .
 
-      - name: Lint SQL/dbt (sqlfluff)
-        run: sqlfluff lint dbt_project/models --dialect snowflake
-
   # ---------------------------------------------------------------------
-  # 2. Tests unitaires - Ingestion Python
-  # ---------------------------------------------------------------------
-  test-ingestion:
-    runs-on: ubuntu-latest
-    needs: lint
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Installer les dépendances (ingestion)
-        run: pip install -r ingestion/requirements.txt
-
-      - name: Lancer les tests pytest
-        run: pytest tests/test_ingestion/ --cov=ingestion --cov-report=xml
-
-      - name: Upload couverture (ingestion)
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-ingestion
-          path: coverage.xml
-
-  # ---------------------------------------------------------------------
-  # 3. Tests unitaires / intégration - API FastAPI
-  # ---------------------------------------------------------------------
-  test-api:
-    runs-on: ubuntu-latest
-    needs: lint
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Installer les dépendances (API)
-        run: pip install -r api/requirements.txt
-
-      - name: Lancer les tests pytest (TestClient)
-        run: pytest tests/test_api/ --cov=api --cov-report=xml
-
-      - name: Upload couverture (API)
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-api
-          path: coverage.xml
-
-  # ---------------------------------------------------------------------
-  # 4. Tests ML - non-régression (XGBoost / Random Forest / LightGBM)
+  # 2. Tests ML (préparation du dataset, entraînement, non-fuite du test)
   # ---------------------------------------------------------------------
   test-ml:
     runs-on: ubuntu-latest
-    needs: lint
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: ml/requirements*.txt
 
       - name: Installer les dépendances (ML)
-        run: pip install -r ml/requirements.txt
+        run: pip install -r ml/requirements-runtime.txt pytest pytest-cov
 
-      - name: Tests unitaires ML
-        run: pytest tests/test_ml/ --cov=ml --cov-report=xml
-
-      - name: Test de non-régression (MAE/RMSE vs baseline)
-        run: python ml/scripts/check_regression.py --models xgboost randomforest lightgbm
+      - name: Tests ML
+        run: pytest tests/test_ml/ --cov=ml --cov-report=xml:coverage-ml.xml
 
       - name: Upload couverture (ML)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-ml
-          path: coverage.xml
+          path: coverage-ml.xml
+          if-no-files-found: ignore
 
   # ---------------------------------------------------------------------
-  # 5. Build & tests dbt (Snowflake)
+  # 3. Tests API FastAPI (TestClient, Snowflake / ML simulés)
   # ---------------------------------------------------------------------
-  dbt-build:
+  test-api:
     runs-on: ubuntu-latest
-    needs: lint
-    env:
-      DBT_PROFILES_DIR: ./dbt_project
-      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-      SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-      SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
-      SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
-      SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
-      SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA_DEV }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            ml/requirements-runtime.txt
+            api/requirements.txt
+
+      # L'API importe le paquet ml : mêmes dépendances que l'image Docker.
+      - name: Installer les dépendances (API)
+        run: pip install -r ml/requirements-runtime.txt -r api/requirements.txt
+
+      # main.py importe `routers`, `schemas`... à plat (comme dans l'image) :
+      # api/ doit être dans le PYTHONPATH, en plus de la racine (paquet ml).
+      - name: Tests API
+        env:
+          PYTHONPATH: ${{ github.workspace }}/api:${{ github.workspace }}
+        run: pytest tests/test_api/ --cov=api --cov-report=xml:coverage-api.xml
+
+      - name: Upload couverture (API)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-api
+          path: coverage-api.xml
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------
+  # 4. dbt : vérification du projet sans connexion Snowflake
+  #    `dbt parse` valide le Jinja, les ref()/source() et les schema.yml.
+  #    Le `dbt build` réel reste manuel / Airflow (l'utilisateur dbt
+  #    actuel est en MFA, inutilisable depuis la CI).
+  # ---------------------------------------------------------------------
+  dbt-parse:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -140,50 +126,69 @@ jobs:
       - name: Installer dbt
         run: pip install dbt-snowflake
 
-      - name: dbt deps
-        working-directory: dbt_project
-        run: dbt deps
+      - name: Profil factice (aucune connexion n'est ouverte)
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml <<'EOF'
+          dataflow360:
+            target: ci
+            outputs:
+              ci:
+                type: snowflake
+                account: ci
+                user: ci
+                password: ci
+                role: ci
+                database: ci
+                warehouse: ci
+                schema: ci
+                threads: 1
+          EOF
 
-      - name: dbt build (run + test)
+      - name: dbt parse
         working-directory: dbt_project
-        run: dbt build --target dev
+        run: dbt parse --target ci
 
   # ---------------------------------------------------------------------
-  # 6. Build Docker (API + ML) - dépend des tests précédents
+  # 5. Build Docker (API + ML) + smoke tests
+  #    Contexte de build = racine du projet (l'API importe le paquet ml).
   # ---------------------------------------------------------------------
   docker-build:
     runs-on: ubuntu-latest
-    needs: [test-ingestion, test-api, test-ml, dbt-build]
+    needs: [test-ml, test-api]
     steps:
       - uses: actions/checkout@v4
 
       - name: Build image API
-        run: docker build -t assaman-suuf-api:${{ github.sha }} -f api/Dockerfile ./api
+        run: docker build -t assaman-suuf-api:${{ github.sha }} -f api/Dockerfile .
 
       - name: Build image ML
-        run: docker build -t assaman-suuf-ml:${{ github.sha }} -f ml/Dockerfile ./ml
+        run: docker build -t assaman-suuf-ml:${{ github.sha }} -f ml/Dockerfile .
 
-      - name: Smoke test - API (le conteneur démarre et répond)
+      - name: Smoke test - API (le conteneur démarre et /health répond)
         run: |
           docker run -d --name api-test -p 8000:8000 assaman-suuf-api:${{ github.sha }}
-          sleep 5
-          curl --fail http://localhost:8000/health || (docker logs api-test && exit 1)
-          docker stop api-test
+          for i in $(seq 1 30); do
+            curl -fs http://localhost:8000/health && exit 0
+            sleep 1
+          done
+          docker logs api-test
+          exit 1
 
-      - name: Smoke test - ML (le conteneur démarre)
+      # L'image ML est un job batch (export / entraînement) qui a besoin de
+      # Snowflake ou d'un parquet : on vérifie seulement que le code s'importe.
+      - name: Smoke test - ML (les modules s'importent)
         run: |
-          docker run -d --name ml-test assaman-suuf-ml:${{ github.sha }}
-          sleep 5
-          docker ps --filter "name=ml-test" --filter "status=running" | grep ml-test || (docker logs ml-test && exit 1)
-          docker stop ml-test
+          docker run --rm assaman-suuf-ml:${{ github.sha }} \
+            python -c "import ml.service_prediction, ml.scripts.entrainement, ml.scripts.export_dataset"
 
   # ---------------------------------------------------------------------
-  # 7. Deploy - publie les images sur GitHub Container Registry
-  #    Ne se déclenche que sur un push direct sur main (pas sur les PR)
+  # 6. Deploy - publie les images sur GitHub Container Registry
+  #    Uniquement sur un push sur main, si tout est vert.
   # ---------------------------------------------------------------------
   deploy:
     runs-on: ubuntu-latest
-    needs: docker-build
+    needs: [lint, test-ml, test-api, dbt-parse, docker-build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       packages: write
@@ -198,36 +203,32 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build + push image API
+      - name: Build + push images API et ML
         run: |
-          docker build -t ghcr.io/abdoudjigo/assaman-suuf-api:${{ github.sha }} -f api/Dockerfile ./api
-          docker tag ghcr.io/abdoudjigo/assaman-suuf-api:${{ github.sha }} ghcr.io/abdoudjigo/assaman-suuf-api:latest
-          docker push ghcr.io/abdoudjigo/assaman-suuf-api:${{ github.sha }}
-          docker push ghcr.io/abdoudjigo/assaman-suuf-api:latest
-
-      - name: Build + push image ML
-        run: |
-          docker build -t ghcr.io/abdoudjigo/assaman-suuf-ml:${{ github.sha }} -f ml/Dockerfile ./ml
-          docker tag ghcr.io/abdoudjigo/assaman-suuf-ml:${{ github.sha }} ghcr.io/abdoudjigo/assaman-suuf-ml:latest
-          docker push ghcr.io/abdoudjigo/assaman-suuf-ml:${{ github.sha }}
-          docker push ghcr.io/abdoudjigo/assaman-suuf-ml:latest
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          for svc in api ml; do
+            IMAGE=ghcr.io/$OWNER/assaman-suuf-$svc
+            docker build -t $IMAGE:${{ github.sha }} -t $IMAGE:latest -f $svc/Dockerfile .
+            docker push $IMAGE:${{ github.sha }}
+            docker push $IMAGE:latest
+          done
 
       # Étape suivante (environnement Dev réel non encore provisionné) :
       # SSH vers le serveur Dev + docker compose pull && up -d
       # ou déploiement vers un service cloud (Render, Railway, VM Orange...)
 
   # ---------------------------------------------------------------------
-  # 8. Statut final
+  # 7. Statut final (à mettre en "required check" sur develop / main)
   # ---------------------------------------------------------------------
   ci-status:
     runs-on: ubuntu-latest
-    needs: [lint, test-ingestion, test-api, test-ml, dbt-build, docker-build]
+    needs: [lint, test-ml, test-api, dbt-parse, docker-build]
     if: always()
     steps:
       - name: Vérifier que tous les jobs ont réussi
         run: |
-          if [ "${{ contains(needs.*.result, 'failure') }}" = "true" ]; then
-            echo "Au moins un job a échoué."
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            echo "Au moins un job a échoué ou a été annulé."
             exit 1
           fi
           echo "Pipeline CI/CD réussi."

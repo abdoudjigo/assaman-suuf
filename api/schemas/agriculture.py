@@ -2,8 +2,6 @@
 Schémas de réponse de l'API Agriculture.
 """
 
-from typing import Optional
-
 from pydantic import BaseModel
 
 from schemas.common import Pagination
@@ -12,30 +10,30 @@ from schemas.common import Pagination
 class AgricultureItem(BaseModel):
     """Une observation/campagne agricole."""
 
-    observation_id: Optional[str] = None
-    zone_key: Optional[str] = None
-    produit_key: Optional[str] = None
-    fnid: Optional[str] = None
+    observation_id: str | None = None
+    zone_key: str | None = None
+    produit_key: str | None = None
+    fnid: str | None = None
 
-    region: Optional[str] = None
-    departement: Optional[str] = None
-    produit: Optional[str] = None
-    categorie: Optional[str] = None
+    region: str | None = None
+    departement: str | None = None
+    produit: str | None = None
+    categorie: str | None = None
 
-    saison: Optional[str] = None
-    annee_semis: Optional[int] = None
-    mois_semis: Optional[int] = None
-    annee_recolte: Optional[int] = None
-    mois_recolte: Optional[int] = None
+    saison: str | None = None
+    annee_semis: int | None = None
+    mois_semis: int | None = None
+    annee_recolte: int | None = None
+    mois_recolte: int | None = None
 
-    systeme_production: Optional[str] = None
-    indicateur_qualite: Optional[int] = None
+    systeme_production: str | None = None
+    indicateur_qualite: int | None = None
 
-    superficie_ha: Optional[float] = None
-    production_t: Optional[float] = None
-    rendement_t_ha: Optional[float] = None
+    superficie_ha: float | None = None
+    production_t: float | None = None
+    rendement_t_ha: float | None = None
 
-    source_system: Optional[str] = None
+    source_system: str | None = None
 
 
 class AgricultureResponse(BaseModel):

@@ -2,8 +2,6 @@
 Schémas de réponse de l'API Produits.
 """
 
-from typing import Optional
-
 from pydantic import BaseModel
 
 from schemas.common import Pagination
@@ -12,9 +10,9 @@ from schemas.common import Pagination
 class ProduitItem(BaseModel):
     """Un produit agricole."""
 
-    produit_key: Optional[str] = None
-    produit: Optional[str] = None
-    categorie: Optional[str] = None
+    produit_key: str | None = None
+    produit: str | None = None
+    categorie: str | None = None
 
 
 class ProduitResponse(BaseModel):

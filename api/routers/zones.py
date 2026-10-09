@@ -4,14 +4,11 @@ Routes REST pour les zones géographiques.
 
 import logging
 import math
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
-
 from redis_client import get_cached, make_cache_key, set_cached
 from schemas.zones import ZoneResponse
 from snowflake_client import get_snowflake_connection
-
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +27,7 @@ router = APIRouter(
 def get_zones(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
-    region: Optional[str] = Query(
+    region: str | None = Query(
         None,
         description="Filtrer sur une région.",
     ),
@@ -134,9 +131,7 @@ def get_zones(
         return response
 
     except Exception as exc:
-        logger.exception(
-            "Erreur sur GET /api/v1/zones"
-        )
+        logger.exception("Erreur sur GET /api/v1/zones")
 
         raise HTTPException(
             status_code=500,

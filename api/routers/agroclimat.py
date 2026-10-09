@@ -4,14 +4,11 @@ Routes REST pour les données agroclimatiques de DataFlow360.
 
 import logging
 import math
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
-
 from redis_client import get_cached, make_cache_key, set_cached
 from schemas.agroclimat import AgroclimatResponse
 from snowflake_client import get_snowflake_connection
-
 
 logger = logging.getLogger(__name__)
 
@@ -38,19 +35,19 @@ def get_agroclimat(
         le=200,
         description="Nombre maximum de lignes par page.",
     ),
-    fnid: Optional[str] = Query(
+    fnid: str | None = Query(
         None,
         description="Filtrer sur un FNID.",
     ),
-    produit_key: Optional[str] = Query(
+    produit_key: str | None = Query(
         None,
         description="Filtrer sur une clé produit.",
     ),
-    annee: Optional[int] = Query(
+    annee: int | None = Query(
         None,
         description="Filtrer sur l'année de la campagne.",
     ),
-    systeme_production: Optional[str] = Query(
+    systeme_production: str | None = Query(
         None,
         description="Filtrer sur le système de production.",
     ),
@@ -81,9 +78,7 @@ def get_agroclimat(
         params.append(annee)
 
     if systeme_production is not None:
-        filters.append(
-            "UPPER(a.SYSTEME_PRODUCTION) = UPPER(?)"
-        )
+        filters.append("UPPER(a.SYSTEME_PRODUCTION) = UPPER(?)")
         params.append(systeme_production)
 
     where_clause = ""
@@ -258,9 +253,7 @@ def get_agroclimat(
         return response
 
     except Exception as exc:
-        logger.exception(
-            "Erreur sur GET /api/v1/agroclimat"
-        )
+        logger.exception("Erreur sur GET /api/v1/agroclimat")
 
         raise HTTPException(
             status_code=500,

@@ -4,14 +4,11 @@ Routes REST pour les produits agricoles.
 
 import logging
 import math
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
-
 from redis_client import get_cached, make_cache_key, set_cached
 from schemas.produits import ProduitResponse
 from snowflake_client import get_snowflake_connection
-
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +27,11 @@ router = APIRouter(
 def get_produits(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
-    categorie: Optional[str] = Query(
+    categorie: str | None = Query(
         None,
         description="Filtrer sur une catégorie.",
     ),
-    search: Optional[str] = Query(
+    search: str | None = Query(
         None,
         description="Rechercher un produit par nom.",
     ),
@@ -149,9 +146,7 @@ def get_produits(
         return response
 
     except Exception as exc:
-        logger.exception(
-            "Erreur sur GET /api/v1/produits"
-        )
+        logger.exception("Erreur sur GET /api/v1/produits")
 
         raise HTTPException(
             status_code=500,

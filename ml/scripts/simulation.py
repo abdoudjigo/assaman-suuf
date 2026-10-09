@@ -40,28 +40,40 @@ def valeurs_acceptees() -> dict:
     return charger_modele()["valeurs"]
 
 
-def lire_climat_observe(region: str, annee: int, saison: str) -> dict | None:
+def lire_climat_observe(region: str, annee: int, saison: str, conn=None) -> dict | None:
     """Climat mesuré de la campagne, lu dans Snowflake (MARTS).
 
     Même calcul que dbt : moyenne des stations de la région mois par mois,
     puis somme des pluies et moyenne des températures sur les mois de la
     saison. Renvoie None si un mois de la campagne n'a pas de pluie mesurée.
-    """
-    from ml.scripts.connexion_snowflake import connexion
 
+    `conn` : connexion Snowflake déjà ouverte (paramstyle qmark). L'API
+    passe la sienne (clé RSA, rôle lecture seule) ; sans `conn`, on utilise
+    la connexion du dossier ml (usage hors API). L'appelant ferme `conn`.
+    """
     debut, fin = MOIS_SAISON[saison]
     requete = """
         SELECT t.mois, AVG(c.prcp_mm) AS prcp_mm, AVG(c.tavg) AS tavg
-        FROM MARTS.FCT_CLIMAT AS c
-        JOIN MARTS.DIM_STATION AS s ON c.station_key = s.station_key
-        JOIN MARTS.DIM_ZONE AS z ON s.zone_key = z.zone_key
-        JOIN MARTS.DIM_TEMPS AS t ON c.date_key = t.date_key
-        WHERE z.region = %s AND t.annee = %s AND t.mois BETWEEN %s AND %s
+        FROM DATAFLOW360.MARTS.FCT_CLIMAT AS c
+        JOIN DATAFLOW360.MARTS.DIM_STATION AS s ON c.station_key = s.station_key
+        JOIN DATAFLOW360.MARTS.DIM_ZONE AS z ON s.zone_key = z.zone_key
+        JOIN DATAFLOW360.MARTS.DIM_TEMPS AS t ON c.date_key = t.date_key
+        WHERE z.region = ? AND t.annee = ? AND t.mois BETWEEN ? AND ?
         GROUP BY t.mois
     """
     station = REGION_VOISINE.get(region, region)
-    with connexion(schema="MARTS") as conn:
+
+    if conn is not None:
         mois = conn.cursor().execute(requete, (station, annee, debut, fin)).fetchall()
+    else:
+        from ml.scripts.connexion_snowflake import connexion
+
+        with connexion(schema="MARTS") as ma_conn:
+            mois = (
+                ma_conn.cursor()
+                .execute(requete, (station, annee, debut, fin))
+                .fetchall()
+            )
 
     pluies = [float(p) for _, p, _ in mois if p is not None]
     if len(pluies) < fin - debut + 1:
