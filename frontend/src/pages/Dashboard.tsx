@@ -1,4 +1,7 @@
 import { useMemo, useState } from "react";
+import axios from "axios";
+
+import SandBoxDashboard  from "./SandBoxDashboard.tsx";
 import {
     Activity,
     AlertTriangle,
@@ -82,6 +85,9 @@ const zoneData = {
         agriculture: "À surveiller",
     },
 };
+
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -2084,8 +2090,6 @@ function BaseMapPanel({
     );
 }
 
-
-
 /*
 |--------------------------------------------------------------------------
 | DASHBOARD PRINCIPAL
@@ -2100,6 +2104,8 @@ export default function Dashboard() {
     const [zoom, setZoom] = useState(6);
 
     const [baseMap, setBaseMap] = useState("Clair");
+
+    const [sandboxOpen, setSandboxOpen] = useState(false);
 
     const [filters, setFilters] =
         useState(defaultFilters);
@@ -2258,11 +2264,19 @@ export default function Dashboard() {
 
             {renderPanel()}
 
-            <BottomNavigation
-                activeView={activeView}
-                setActiveView={setActiveView}
-                activeLayerCount={activeLayerIds.length}
-            />
+            <div
+                className={`absolute inset-x-0 z-50 transition-[bottom] duration-500 ${
+                    sandboxOpen ? "bottom-[min(65vh,540px)]" : "bottom-0"
+                }`}
+            >
+                <BottomNavigation
+                    activeView={activeView}
+                    setActiveView={setActiveView}
+                    activeLayerCount={activeLayerIds.length}
+                />
+            </div>
+
+            <SandBoxDashboard onToggle={setSandboxOpen} />
         </div>
     );
 }
