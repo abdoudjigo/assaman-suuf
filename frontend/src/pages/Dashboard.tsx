@@ -1,7 +1,4 @@
 import { useMemo, useState } from "react";
-import axios from "axios";
-
-import SandBoxDashboard  from "./SandBoxDashboard.tsx";
 import {
     Activity,
     AlertTriangle,
@@ -47,6 +44,7 @@ import MapControls from "./MapControls.tsx"
 import DashboardHeader from "./DashboardHeader.tsx";
 import PanelShell from "./PanelShell.tsx";
 import FilterPanel from "./FilterPanel.tsx";
+import LogControlOptions from "./LogControlOptions.tsx";
 import {SectionTitle,FilterSection,InputField,SelectField,CheckOption} from "./ComposantField.tsx"
 
 /*
@@ -85,9 +83,6 @@ const zoneData = {
         agriculture: "À surveiller",
     },
 };
-
-
-
 
 /*
 |--------------------------------------------------------------------------
@@ -1089,6 +1084,10 @@ function LocationMapDashboard({
                                   layerSettings,
                                   onRemoveLayer,
                                   onLocate,
+                                  onHandleUserProfile,
+                                  onHandleUserSettings,
+                                  onHandleUserBells,
+                                  onHandleUserOthersOptions,
                               }) {
     return (
         <main className="absolute inset-0 overflow-hidden bg-slate-200">
@@ -1153,6 +1152,13 @@ function LocationMapDashboard({
             />
 
             <MapLegend activeLayerIds={activeLayerIds} />
+
+            <LogControlOptions
+                onHandleUserProfile={onHandleUserProfile}
+                onHandleUserSettings={onHandleUserSettings}
+                onHandleUserBells={onHandleUserBells}
+                onHandleUserOthersOptions={onHandleUserOthersOptions}
+            />
 
             {selectedZone && (
                 <ZoneInformationPanel
@@ -2090,6 +2096,8 @@ function BaseMapPanel({
     );
 }
 
+
+
 /*
 |--------------------------------------------------------------------------
 | DASHBOARD PRINCIPAL
@@ -2104,8 +2112,6 @@ export default function Dashboard() {
     const [zoom, setZoom] = useState(6);
 
     const [baseMap, setBaseMap] = useState("Clair");
-
-    const [sandboxOpen, setSandboxOpen] = useState(false);
 
     const [filters, setFilters] =
         useState(defaultFilters);
@@ -2158,6 +2164,24 @@ export default function Dashboard() {
          */
 
         console.log("Localisation demandée");
+    };
+
+    // Gestionnaires provisoires des boutons de compte utilisateur.
+    // Ils pourront ensuite ouvrir de vrais panneaux ou dialogues.
+    const handleUserProfile = () => {
+        console.log("Ouverture du profil utilisateur");
+    };
+
+    const handleUserSettings = () => {
+        console.log("Ouverture des paramètres utilisateur");
+    };
+
+    const handleUserBells = () => {
+        console.log("Ouverture des notifications");
+    };
+
+    const handleUserOthersOptions = () => {
+        console.log("Ouverture des autres options utilisateur");
     };
 
     const handleRemoveLayer = (layerId) => {
@@ -2235,9 +2259,9 @@ export default function Dashboard() {
 
     return (
         <div className="relative h-screen w-full overflow-hidden bg-slate-100 text-slate-900">
-            <DashboardHeader
-                onOpenSearch={() => setActiveView("filters")}
-            />
+            {/*<DashboardHeader*/}
+            {/*    onOpenSearch={() => setActiveView("filters")}*/}
+            {/*/>*/}
 
             <LocationMapDashboard
                 selectedZone={selectedZone}
@@ -2252,6 +2276,10 @@ export default function Dashboard() {
                 layerSettings={layerSettings}
                 onRemoveLayer={handleRemoveLayer}
                 onLocate={handleLocate}
+                onHandleUserProfile={handleUserProfile}
+                onHandleUserSettings={handleUserSettings}
+                onHandleUserBells={handleUserBells}
+                onHandleUserOthersOptions={handleUserOthersOptions}
             />
 
             {activeView === "base-map" && (
@@ -2264,19 +2292,11 @@ export default function Dashboard() {
 
             {renderPanel()}
 
-            <div
-                className={`absolute inset-x-0 z-50 transition-[bottom] duration-500 ${
-                    sandboxOpen ? "bottom-[min(65vh,540px)]" : "bottom-0"
-                }`}
-            >
-                <BottomNavigation
-                    activeView={activeView}
-                    setActiveView={setActiveView}
-                    activeLayerCount={activeLayerIds.length}
-                />
-            </div>
-
-            <SandBoxDashboard onToggle={setSandboxOpen} />
+            <BottomNavigation
+                activeView={activeView}
+                setActiveView={setActiveView}
+                activeLayerCount={activeLayerIds.length}
+            />
         </div>
     );
 }
