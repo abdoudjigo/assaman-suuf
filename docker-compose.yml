@@ -3,3 +3,5 @@ include:
   - ./ingestion/kafka_source/docker-compose.yml
   - ./ingestion/mongodb_source/docker-compose.yml
   - ./ml/docker-compose.yml
+  - ./frontend/docker-compose.yml
+  - ./api/docker-compose.yml
