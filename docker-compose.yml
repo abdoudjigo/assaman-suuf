@@ -1,7 +1,20 @@
+name: assaman-suuf
+
 include:
-  - ./orchestration/docker-compose.yaml
-  - ./ingestion/kafka_source/docker-compose.yml
-  - ./ingestion/mongodb_source/docker-compose.yml
-  - ./ml/docker-compose.yml
-  - ./frontend/docker-compose.yml
-  - ./api/docker-compose.yml
+  - path: ./orchestration/docker-compose.yaml
+    env_file: .env
+
+  - path: ./ingestion/kafka_source/docker-compose.yml
+    env_file: .env
+
+  - path: ./ingestion/mongodb_source/docker-compose.yml
+    env_file: .env
+
+  - path: ./ml/docker-compose.yml
+    env_file: .env
+
+  - path: ./frontend/docker-compose.yaml
+    env_file: .env
+
+  - path: ./api/docker-compose.yml
+    env_file: .env
