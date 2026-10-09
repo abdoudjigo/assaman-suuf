@@ -3,6 +3,7 @@
 | CONTRÔLES DE CARTE
 |--------------------------------------------------------------------------
 */
+import {Plus,Minus,LocateFixed,Layers} from "lucide-react";
 
 function MapControls({
                          zoom,

@@ -1,3 +1,10 @@
+import PanelShell from "./PanelShell.tsx"
+
+import {FilterSection,SelectField,InputField,CheckOption} from "./ComposantField.tsx"
+
+import {MapPinned,Filter,CloudRain,Sprout,SlidersHorizontal,
+    Mountain,Droplets,Satellite,AlertTriangle,Check,Building2,Activity,} from "lucide-react"
+
 /*
 |--------------------------------------------------------------------------
 | FILTRES
@@ -651,3 +658,6 @@ function FilterPanel({
         </PanelShell>
     );
 }
+
+
+export default FilterPanel;
