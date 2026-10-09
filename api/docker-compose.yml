@@ -1,20 +1,29 @@
-services:
 
+services:
   api:
     build:
       context: ..
       dockerfile: api/Dockerfile
     image: dataflow360-api
     container_name: dataflow360-api
+    restart: unless-stopped
+
     ports:
       - "8001:8000"
 
-    env_file:
-      - .env
-
     environment:
+      API_HOST: ${API_HOST:-0.0.0.0}
+      API_PORT: ${API_PORT:-8000}
+
       REDIS_HOST: redis
       REDIS_PORT: 6379
+
+      SNOWFLAKE_ACCOUNT: ${SNOWFLAKE_ACCOUNT}
+      SNOWFLAKE_USER: ${SNOWFLAKE_USER}
+      SNOWFLAKE_ROLE: ${SNOWFLAKE_ROLE}
+      SNOWFLAKE_WAREHOUSE: ${SNOWFLAKE_WAREHOUSE}
+      SNOWFLAKE_DATABASE: ${SNOWFLAKE_DATABASE}
+      SNOWFLAKE_SCHEMA: ${SNOWFLAKE_SCHEMA}
 
       SNOWFLAKE_PRIVATE_KEY_PATH: /run/secrets/snowflake_private_key
       SNOWFLAKE_PRIVATE_KEY_PASSWORD_FILE: /run/secrets/snowflake_private_key_password
@@ -24,7 +33,6 @@ services:
       - snowflake_private_key_password
 
     volumes:
-      # Modèle produit par ml-entrainement, relu à chaque démarrage.
       - ../ml/models:/app/ml/models:ro
 
     depends_on:
@@ -32,18 +40,19 @@ services:
         condition: service_healthy
 
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
       interval: 15s
       timeout: 5s
       retries: 5
-
-    restart: unless-stopped
-
+      start_period: 20s
 
   redis:
     image: redis:7-alpine
     container_name: dataflow360-api-redis
-
     restart: unless-stopped
 
     volumes:
@@ -55,13 +64,10 @@ services:
       timeout: 3s
       retries: 5
 
-
 volumes:
   redis_data:
 
-
 secrets:
-
   snowflake_private_key:
     file: ./secrets/snowflake_api_key.pem
 
