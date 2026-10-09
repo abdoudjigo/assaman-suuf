@@ -44,7 +44,7 @@ import MapControls from "./MapControls.tsx"
 import DashboardHeader from "./DashboardHeader.tsx";
 import PanelShell from "./PanelShell.tsx";
 import FilterPanel from "./FilterPanel.tsx";
-import {} from "./ComposantField.tsx"
+import {SectionTitle,FilterSection,InputField,SelectField,CheckOption} from "./ComposantField.tsx"
 
 /*
 |--------------------------------------------------------------------------
@@ -1089,7 +1089,7 @@ function LocationMapDashboard({
             {/* Placeholder cartographique */}
             <div className="absolute inset-0">
                 <img
-                    src="/images/senegal-map.png"
+                    src="../assets/images/carte_senegal.png"
                     alt="Carte du Sénégal"
                     className={`h-full w-full object-cover ${
                         baseMap === "Sombre"
