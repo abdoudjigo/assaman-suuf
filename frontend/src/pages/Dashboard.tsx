@@ -1095,7 +1095,7 @@ function LocationMapDashboard({
             {/* Placeholder cartographique */}
             <div className="absolute inset-0">
                 <img
-                    src="../assets/images/carte_senegal.png"
+                    src="/images/carte_senegal.png"
                     alt="Carte du Sénégal"
                     className={`h-full w-full object-cover ${
                         baseMap === "Sombre"
