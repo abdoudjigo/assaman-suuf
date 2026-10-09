@@ -1,8 +1,19 @@
+# Pandas, numpy, scikit-learn, joblib, snowflake-connector et python-dotenv
+# viennent de ml/requirements-runtime.txt (versions figées : le .pkl doit
+# être relu avec la version de scikit-learn qui l'a entraîné).
+
+# API
 fastapi
 uvicorn
-httpx
-pandas
-snowflake-connector-python
-python-dotenv
+
+# Cache
+redis
+
+# Validation / configuration
+pydantic
+pydantic-settings
+
+# Tests
 pytest
 pytest-cov
+httpx

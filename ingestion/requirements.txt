@@ -1,9 +1,35 @@
+# Data manipulation
 pandas
+numpy
+
+# PostgreSQL
 sqlalchemy
 psycopg2-binary
+
+# MongoDB
 pymongo
+
+# Kafka
 kafka-python
+
+# Snowflake
 snowflake-connector-python
+
+# API / HTTP
+requests
+httpx
+
+# Data ingestion / transformation
+dlt
+
+# Climate / scientific data
+xarray
+netCDF4
+
+# Configuration
 python-dotenv
+pyyaml
+
+# Testing
 pytest
 pytest-cov

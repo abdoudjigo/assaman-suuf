@@ -1,0 +1,103 @@
+{
+  "version": "20261008_151344",
+  "dataset": "ml_rendement_campagne_20261008.parquet",
+  "lignes": {
+    "train": 6456,
+    "test": 1241,
+    "total": 7697
+  },
+  "modele": {
+    "type": "lasso",
+    "alpha": 0.001
+  },
+  "validation": {
+    "lineaire": 0.7498964239554796,
+    "ridge (alpha=0.1)": 0.6690209156016509,
+    "ridge (alpha=1)": 0.6135241500240273,
+    "ridge (alpha=10)": 0.6499164990622359,
+    "ridge (alpha=100)": 0.6828568836579093,
+    "lasso (alpha=0.0003)": 0.5843182859074378,
+    "lasso (alpha=0.001)": 0.578201291556125,
+    "lasso (alpha=0.003)": 0.628402868005044,
+    "lasso (alpha=0.01)": 0.7094644223499879
+  },
+  "test": {
+    "modele": {
+      "n": 1241,
+      "mae": 0.6075271716166003,
+      "rmse": 1.3870377793398525,
+      "r2": 0.6547441413590371
+    },
+    "baseline_region_produit": {
+      "n": 1241,
+      "mae": 0.6337762674154264,
+      "rmse": 1.476529152705108,
+      "r2": 0.6087552449648901
+    },
+    "par_produit": {
+      "Arachide (en coque)": {
+        "n": 189,
+        "mae_modele": 0.21877344697932827,
+        "mae_baseline": 0.21478145523076686
+      },
+      "Fonio": {
+        "n": 28,
+        "mae_modele": 0.13672680447545976,
+        "mae_baseline": 0.14112748836153866
+      },
+      "Manioc": {
+        "n": 122,
+        "mae_modele": 2.5924988909881286,
+        "mae_baseline": 2.980002178364698
+      },
+      "Maïs": {
+        "n": 178,
+        "mae_modele": 0.5168615001743155,
+        "mae_baseline": 0.4134085070626191
+      },
+      "Mil": {
+        "n": 173,
+        "mae_modele": 0.15906900317248135,
+        "mae_baseline": 0.1567794628662631
+      },
+      "Niébé": {
+        "n": 176,
+        "mae_modele": 0.1326672047842052,
+        "mae_baseline": 0.1417364289617704
+      },
+      "Patate douce": {
+        "n": 5,
+        "mae_modele": 8.685865449742575,
+        "mae_baseline": 8.608036900811923
+      },
+      "Riz": {
+        "n": 136,
+        "mae_modele": 1.0666986948490498,
+        "mae_baseline": 1.141878626919379
+      },
+      "Sorgho": {
+        "n": 180,
+        "mae_modele": 0.24461484019641264,
+        "mae_baseline": 0.2494755988566476
+      },
+      "Sésame": {
+        "n": 54,
+        "mae_modele": 0.3162794382558871,
+        "mae_baseline": 0.17619183332851596
+      }
+    },
+    "par_source_climat": {
+      "mesure": {
+        "n": 884,
+        "mae_modele": 0.6709786139067175,
+        "mae_baseline": 0.7003545319372064
+      },
+      "region_voisine": {
+        "n": 357,
+        "mae_modele": 0.45040931451726207,
+        "mae_baseline": 0.4689158028853045
+      }
+    }
+  },
+  "coherence_pluie": 0.8
+}

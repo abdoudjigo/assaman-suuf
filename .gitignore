@@ -1,6 +1,8 @@
 .env
 *.key
 *.pem
+*.p8
+*.pub
 credentials.json
 secrets.json
 __pycache__/
@@ -22,3 +24,6 @@ dbt_venv/
 dbt_project/logs/
 dbt_project/target/
 logs/
+api/.venv/
+secrets/
+test_ml_full

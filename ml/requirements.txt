@@ -1,0 +1,10 @@
+# Modèle de simulation du rendement (régression linéaire, Ridge, Lasso)
+-r requirements-runtime.txt
+
+# Notebooks
+jupyter
+matplotlib
+
+# Tests
+pytest
+pytest-cov
