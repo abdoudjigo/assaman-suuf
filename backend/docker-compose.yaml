@@ -1,0 +1,38 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: assaman-geo-api
+    env_file:
+      - .env
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgis:
+    image: postgis/postgis:16-3.5
+    container_name: assaman-geo-postgis
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-assaman_geo}
+      POSTGRES_USER: ${POSTGRES_USER:-assaman_user}
+      POSTGRES_PASSWORD: ${POSTGIS_PASSWORD:?Définir POSTGIS_PASSWORD dans backend/.env}
+    ports:
+      - "5434:5432"
+    volumes:
+      - geo_postgis_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+volumes:
+  geo_postgis_data:
