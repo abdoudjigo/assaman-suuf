@@ -91,11 +91,11 @@ function InterfaceDashboardOption() {
 
 
     function NavMapCategoryOption() {
-        return()
+        return(<div></div>)
     }
 
     function SystemOptionCategoryOption(){
-                return()
+                return(<div></div>)
     }
 
     return (
