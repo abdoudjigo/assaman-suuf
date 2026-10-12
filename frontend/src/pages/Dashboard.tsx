@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import {
     Activity,
     Code2,
@@ -1076,6 +1078,70 @@ function MapLegend({ activeLayerIds }) {
 |--------------------------------------------------------------------------
 */
 
+
+const mapMarkerStyles = `
+.assaman-map-marker { border: 0; background: transparent; padding: 0; cursor: pointer; }
+.assaman-map-marker > span { display: flex; width: 34px; height: 34px; border-radius: 50%; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 3px 12px rgba(15,23,42,.35); }
+.assaman-map-marker > span > span { display: block; width: 8px; height: 8px; border-radius: 50%; background: white; }
+`;
+
+function getMapStyle(baseMap: string) {
+    const rasterStyle = (
+        tiles: string[],
+        attribution: string,
+        tileSize = 256
+    ) => ({
+        version: 8 as const,
+        sources: {
+            basemap: {
+                type: "raster" as const,
+                tiles,
+                tileSize,
+                attribution,
+            },
+        },
+        layers: [
+            {
+                id: "basemap",
+                type: "raster" as const,
+                source: "basemap",
+                paint: { "raster-opacity": 1 },
+            },
+        ],
+    });
+
+    switch (baseMap) {
+        case "Satellite":
+            return rasterStyle(
+                ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+                "Tiles © Esri"
+            );
+        case "Terrain":
+            return rasterStyle(
+                ["https://a.tile.opentopomap.org/{z}/{x}/{y}.png"],
+                "Map data © OpenStreetMap contributors, SRTM | Map style © OpenTopoMap"
+            );
+        case "Sombre":
+            return rasterStyle(
+                [
+                    "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+                    "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+                    "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+                ],
+                "© OpenStreetMap contributors © CARTO"
+            );
+        default:
+            return rasterStyle(
+                [
+                    "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                    "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                    "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                ],
+                "© OpenStreetMap contributors"
+            );
+    }
+}
+
 function LocationMapDashboard({
                                   selectedZone,
                                   onSelectZone,
@@ -1094,56 +1160,129 @@ function LocationMapDashboard({
                                   onQueryApi,
                                   apiLoading,
                               }) {
+    const mapContainerRef = useRef<HTMLDivElement | null>(null);
+    const mapRef = useRef<maplibregl.Map | null>(null);
+    const onSelectZoneRef = useRef(onSelectZone);
+    const onLocateRef = useRef(onLocate);
+
+    useEffect(() => {
+        onSelectZoneRef.current = onSelectZone;
+        onLocateRef.current = onLocate;
+    }, [onSelectZone, onLocate]);
+
+    // Initialise la carte une seule fois.
+    useEffect(() => {
+        if (!mapContainerRef.current || mapRef.current) return;
+
+        const map = new maplibregl.Map({
+            container: mapContainerRef.current,
+            style: getMapStyle(baseMap),
+            center: [-14.5, 14.4],
+            zoom,
+            minZoom: 4,
+            maxZoom: 18,
+            attributionControl: true,
+        });
+
+        mapRef.current = map;
+        map.addControl(new maplibregl.NavigationControl({ showCompass: true }), "top-right");
+
+        const demoLocations = [
+            { name: "Saint-Louis", coordinates: [-16.4896, 16.0179], color: "#f97316" },
+            { name: "Kaolack", coordinates: [-16.0726, 14.1519], color: "#2563eb" },
+            { name: "Kaffrine", coordinates: [-15.5500, 14.1059], color: "#16a34a" },
+        ] as const;
+
+        demoLocations.forEach((location) => {
+            const element = document.createElement("button");
+            element.type = "button";
+            element.className = "assaman-map-marker";
+            element.title = location.name;
+            element.setAttribute("aria-label", `Afficher les informations de ${location.name}`);
+            element.innerHTML = `<span style="background:${location.color}"><span></span></span>`;
+            element.addEventListener("click", () => onSelectZoneRef.current(location.name));
+
+            new maplibregl.Marker({ element, anchor: "bottom" })
+                .setLngLat(location.coordinates as [number, number])
+                .setPopup(
+                    new maplibregl.Popup({ offset: 24 }).setText(location.name)
+                )
+                .addTo(map);
+        });
+
+        map.on("moveend", () => {
+            const nextZoom = Number(map.getZoom().toFixed(1));
+            setZoom((current) => Math.abs(current - nextZoom) > 0.1 ? nextZoom : current);
+        });
+
+        map.on("error", (event) => {
+            // Les erreurs de tuiles peuvent survenir si le fournisseur est indisponible.
+            console.warn("Erreur MapLibre :", event.error?.message ?? event);
+        });
+
+        return () => {
+            map.remove();
+            mapRef.current = null;
+        };
+        // La carte est volontairement créée une seule fois.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Le sélecteur de fonds de carte change réellement le style MapLibre.
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map) return;
+        map.setStyle(getMapStyle(baseMap));
+    }, [baseMap]);
+
+    // Synchronise les boutons de zoom existants avec la caméra MapLibre.
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map || !Number.isFinite(zoom)) return;
+        if (Math.abs(map.getZoom() - zoom) > 0.2) {
+            map.setZoom(zoom, { duration: 250 });
+        }
+    }, [zoom]);
+
+    // La géolocalisation est déclenchée par le contrôle déjà présent.
+    useEffect(() => {
+        const handler = () => {
+            const map = mapRef.current;
+            if (!map || !navigator.geolocation) {
+                onLocateRef.current?.();
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    map.flyTo({
+                        center: [position.coords.longitude, position.coords.latitude],
+                        zoom: Math.max(map.getZoom(), 12),
+                        essential: true,
+                    });
+                },
+                () => onLocateRef.current?.(),
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        };
+
+        window.addEventListener("assaman-map-locate", handler);
+        return () => window.removeEventListener("assaman-map-locate", handler);
+    }, []);
+
     return (
-        <main className="absolute inset-0 overflow-hidden bg-slate-200">
-            {/* Placeholder cartographique */}
-            <div className="absolute inset-0">
-                <img
-                    src="../assets/images/carte_senegal.png"
-                    alt="Carte du Sénégal"
-                    className={`h-full w-full object-cover ${
-                        baseMap === "Sombre"
-                            ? "brightness-50 grayscale"
-                            : baseMap === "Satellite"
-                                ? "brightness-90 saturate-125"
-                                : baseMap === "Terrain"
-                                    ? "sepia-[0.15]"
-                                    : ""
-                    }`}
-                />
-
-                <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-slate-900/20" />
-
-                {/* Démonstration visuelle des couches */}
-                {activeLayerIds.includes("rainfall") && (
-                    <div className="pointer-events-none absolute inset-0 bg-blue-500/10" />
-                )}
-
-                {activeLayerIds.includes("temperature") && (
-                    <div className="pointer-events-none absolute inset-0 bg-orange-500/10 mix-blend-multiply" />
-                )}
-
-                {activeLayerIds.includes("drought") && (
-                    <div className="pointer-events-none absolute inset-0 bg-red-500/10 mix-blend-multiply" />
-                )}
-
-                {activeLayerIds.includes("ndvi") && (
-                    <div className="pointer-events-none absolute inset-0 bg-green-500/10 mix-blend-multiply" />
-                )}
-
-                {activeLayerIds.includes("farm-density") && (
-                    <div className="pointer-events-none absolute left-[35%] top-[45%] h-52 w-52 rounded-full bg-purple-500/20 blur-3xl" />
-                )}
-
-                {activeLayerIds.includes("infrastructure-density") && (
-                    <div className="pointer-events-none absolute left-[45%] top-[55%] h-40 w-40 rounded-full bg-orange-500/20 blur-3xl" />
-                )}
-            </div>
+        <main className="absolute inset-0 z-0 overflow-hidden bg-slate-200">
+            <style>{mapMarkerStyles}</style>
+            <div
+                ref={mapContainerRef}
+                className="absolute inset-0 z-0 min-h-[320px] w-full"
+                aria-label="Carte interactive agroclimatique du Sénégal"
+                role="application"
+            />
 
             <MapControls
                 zoom={zoom}
                 setZoom={setZoom}
-                onLocate={onLocate}
+                onLocate={() => window.dispatchEvent(new Event("assaman-map-locate"))}
                 baseMap={baseMap}
                 onOpenBaseMap={onOpenBaseMap}
             />
@@ -1158,8 +1297,6 @@ function LocationMapDashboard({
             >
                 {apiLoading ? <RefreshCw size={18} className="animate-spin" /> : <Database size={18} />}
             </button>
-
-            <DemoMarkers onSelectZone={onSelectZone} />
 
             <ActiveLayerStack
                 activeLayerIds={activeLayerIds}
@@ -1183,18 +1320,12 @@ function LocationMapDashboard({
                 />
             )}
 
-            <div className="absolute bottom-24 left-1/2 z-10 hidden -translate-x-1/2 rounded-full border border-white/70 bg-white/90 px-4 py-2 text-[10px] text-slate-500 shadow-lg backdrop-blur md:block">
-                Démonstration cartographique — données GIS à connecter
+            <div className="absolute bottom-4 left-1/2 z-10 hidden -translate-x-1/2 rounded-full border border-white/70 bg-white/90 px-4 py-2 text-[10px] text-slate-500 shadow-lg backdrop-blur md:block">
+                Carte MapLibre · fonds cartographiques en ligne · couches GIS à connecter
             </div>
         </main>
     );
 }
-
-/*
-|--------------------------------------------------------------------------
-| INFORMATIONS D'UNE ZONE
-|--------------------------------------------------------------------------
-*/
 
 function ZoneInformationPanel({ zone, onClose }) {
     const data = zoneData[zone];
@@ -2620,9 +2751,11 @@ export default function Dashboard() {
     return (
         <div className="min-h-screen w-full overflow-x-hidden bg-slate-100 text-slate-900">
             <section className="relative h-[100svh] min-h-[640px] w-full overflow-hidden bg-slate-200">
-                <DashboardHeader
-                    onOpenSearch={() => setActiveView("filters")}
-                />
+                <div className="relative z-40">
+                    <DashboardHeader
+                        onOpenSearch={() => setActiveView("filters")}
+                    />
+                </div>
 
                 <LocationMapDashboard
                     selectedZone={selectedZone}
