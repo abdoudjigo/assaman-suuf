@@ -8,7 +8,7 @@ const MainLayout = () => {
 
             <div className="flex flex-1 flex-col">
                 <Header
-                    title="Dashboard"
+                    title="DashboardApiRun"
                     subtitle="Vue générale de la plateforme agroclimatique"
                 />
 

@@ -6,7 +6,7 @@ interface HeaderProps {
 }
 
 const Header = ({
-                    title = "Dashboard",
+                    title = "DashboardApiRun",
                     subtitle = "Vue générale de la plateforme agroclimatique",
                 }: HeaderProps) => {
     return (

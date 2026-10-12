@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import Dashboard from "../pages/Dashboard";
+import DashboardApiRun from "../pages/DashboardApiRun.tsx";
 import Climate from "../pages/Climate";
 import Agriculture from "../pages/Agriculture";
 import Map from "../pages/Map";
@@ -13,7 +13,7 @@ const AppRoutes = () => {
     return (
         <BrowserRouter>
             <Routes>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/" element={<DashboardMain />} />
                 <Route path="/climate" element={<Climate />} />
                 <Route path="/agriculture" element={<Agriculture />} />
                 <Route path="/map" element={<Map />} />

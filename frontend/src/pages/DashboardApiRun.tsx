@@ -275,7 +275,7 @@ function SectionTitle({
    5. COMPOSANT PRINCIPAL
    ========================================================= */
 
-export default function Dashboard() {
+function DashboardApiRun() {
     const [selectedEndpoint, setSelectedEndpoint] =
         useState("/api/v1/zones");
 
@@ -1092,3 +1092,6 @@ export default function Dashboard() {
         </div>
     );
 }
+
+
+export default DashboardApiRun;
