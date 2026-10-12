@@ -1,2684 +1,1094 @@
+
 import { useMemo, useState } from "react";
+import axios from "axios";
 import {
     Activity,
+    AlertCircle,
+    CheckCircle2,
+    ChevronDown,
+    Clock3,
+    CloudRain,
     Code2,
     Database,
+    ExternalLink,
+    Layers3,
+    LoaderCircle,
+    MapPin,
+    Play,
     RefreshCw,
-    AlertTriangle,
-    BarChart3,
-    Bell,
-    Building2,
-    Check,
-    ChevronDown,
-    ChevronLeft,
-    ChevronRight,
-    ChevronUp,
-    CloudRain,
-    Droplets,
-    Eye,
-    EyeOff,
-    Filter,
-    Gauge,
-    Layers,
-    LocateFixed,
-    Map as MapIcon,
-    MapPinned,
-    Minus,
-    Mountain,
-    MoveDown,
-    MoveUp,
-    Plus,
-    Search,
-    Settings,
-    Satellite,
-    SlidersHorizontal,
-    Sprout,
-    Sun,
-    Thermometer,
-    TrendingUp,
-    UserRound,
-    Waves,
-    Wind,
-    X,
+    Server,
+    ShieldCheck,
+    Terminal,
+    Trash2,
+    Wifi,
+    XCircle,
 } from "lucide-react";
 
-import BottomNavigation from "./BottomNavigation.tsx"
-import MapControls from "./MapControls.tsx"
-import DashboardHeader from "./DashboardHeader.tsx";
-import PanelShell from "./PanelShell.tsx";
-import FilterPanel from "./FilterPanel.tsx";
-import LogControlOptions from "./LogControlOptions.tsx";
-import {SectionTitle,FilterSection,InputField,SelectField,CheckOption} from "./ComposantField.tsx"
+/* =========================================================
+   1. CONFIGURATION API
+   ========================================================= */
 
-/*
-|--------------------------------------------------------------------------
-| DONNÉES DE DÉMONSTRATION
-|--------------------------------------------------------------------------
-| Les valeurs affichées sur la carte sont uniquement des exemples UI.
-| Elles devront être remplacées par les données provenant de l'API
-| FastAPI / PostgreSQL / PostGIS / services raster ou autres sources GIS.
-|--------------------------------------------------------------------------
-*/
+const API_BASE_URL: string =
+    import.meta.env.VITE_API_BASE_URL ?? "";
 
-const zoneData = {
-    Kaffrine: {
-        rainfall: "542 mm",
-        temperature: "29.4 °C",
-        ndvi: "0.61",
-        crop: "Arachide",
-        drought: "Moyen",
-        agriculture: "Favorable",
-    },
-    Kaolack: {
-        rainfall: "615 mm",
-        temperature: "28.9 °C",
-        ndvi: "0.58",
-        crop: "Arachide / Mil",
-        drought: "Faible",
-        agriculture: "Favorable",
-    },
-    "Saint-Louis": {
-        rainfall: "287 mm",
-        temperature: "30.8 °C",
-        ndvi: "0.42",
-        crop: "Riz / Maraîchage",
-        drought: "Élevé",
-        agriculture: "À surveiller",
-    },
+type HttpMethod = "GET" | "POST";
+
+type ApiEndpoint = {
+    label: string;
+    description: string;
+    method: HttpMethod;
+    path: string;
+    category: string;
 };
 
-/*
-|--------------------------------------------------------------------------
-| FILTRES
-|--------------------------------------------------------------------------
-| Les filtres répondent à :
-| "QUELLES DONNÉES veux-je analyser ?"
-|
-| Ils ne déterminent PAS directement ce qui est dessiné sur la carte.
-|--------------------------------------------------------------------------
-*/
-
-const defaultFilters = {
-    geography: {
-        region: "",
-        department: "",
-        commune: "",
-        locality: "",
-        agriculturalZone: "",
-        watershed: "",
-    },
-
-    climate: {
-        periodStart: "1960",
-        periodEnd: "2026",
-        rainfallMin: "",
-        rainfallMax: "",
-        temperatureMin: "",
-        temperatureMax: "",
-        humidity: "",
-        wind: "",
-        radiation: "",
-        evapotranspiration: "",
-    },
-
-    agriculture: {
-        crop: "",
-        season: "",
-        areaMin: "",
-        areaMax: "",
-        yieldMin: "",
-        yieldMax: "",
-        productionMin: "",
-        productionMax: "",
-        farmingType: "",
-        irrigation: "",
-    },
-
-    practices: {
-        fertilizerType: "",
-        fertilizerDose: "",
-        fertilizerApplicationPeriod: "",
-        pesticide: "",
-        irrigationMethod: "",
-        tillage: "",
-        seedVariety: "",
-    },
-
-    soil: {
-        soilType: "",
-        texture: "",
-        ph: "",
-        fertility: "",
-        organicMatter: "",
-        salinity: "",
-        drainage: "",
-    },
-
-    water: {
-        availability: "",
-        groundwater: "",
-        irrigation: "",
-        waterStress: "",
-    },
-
-    remoteSensing: {
-        index: "",
-        minValue: "",
-        maxValue: "",
-    },
-
-    risks: {
-        selected: [],
-        severity: "",
-    },
-
-    infrastructure: {
-        types: [],
-        status: "",
-        fromYear: "",
-        toYear: "",
-    },
-
-    historical: {
-        yearStart: "",
-        yearEnd: "",
-        cropHistory: "",
-        yieldHistory: "",
-        climateHistory: "",
-        fertilizerHistory: "",
-        practiceHistory: "",
-        infrastructureHistory: "",
-        landUseChange: "",
-    },
-};
-
-/*
-|--------------------------------------------------------------------------
-| COUCHES CARTOGRAPHIQUES
-|--------------------------------------------------------------------------
-| Les couches répondent à :
-| "COMMENT représenter les données sur la carte ?"
-|
-| Une couche peut être :
-| - une carte thématique
-| - un point
-| - une heatmap
-| - une densité
-| - un symbole proportionnel
-| - un compteur
-| - une limite géographique
-| - une image satellite
-| - etc.
-|--------------------------------------------------------------------------
-*/
-
-const layerCategories = [
+const API_ENDPOINTS: ApiEndpoint[] = [
     {
-        id: "administrative",
-        label: "Limites géographiques",
-        icon: MapPinned,
-        color: "text-slate-600",
-        layers: [
-            {
-                id: "regions",
-                label: "Régions",
-                description: "Limites administratives régionales",
-                type: "boundary",
-                visualization: "polygons",
-                icon: MapPinned,
-            },
-            {
-                id: "departments",
-                label: "Départements",
-                description: "Limites des départements",
-                type: "boundary",
-                visualization: "polygons",
-                icon: MapPinned,
-            },
-            {
-                id: "communes",
-                label: "Communes",
-                description: "Limites communales",
-                type: "boundary",
-                visualization: "polygons",
-                icon: MapPinned,
-            },
-            {
-                id: "agricultural-zones",
-                label: "Zones agricoles",
-                description: "Découpage des principales zones agricoles",
-                type: "boundary",
-                visualization: "polygons",
-                icon: Sprout,
-            },
-        ],
+        label: "État de l'API",
+        description: "Vérifie si le serveur API répond.",
+        method: "GET",
+        path: "/health",
+        category: "Système",
     },
-
     {
-        id: "climate",
-        label: "Climat",
-        icon: CloudRain,
-        color: "text-blue-600",
-        layers: [
-            {
-                id: "rainfall",
-                label: "Précipitations",
-                description: "Carte thématique des précipitations",
-                type: "thematic-map",
-                visualization: "choropleth",
-                icon: CloudRain,
-            },
-            {
-                id: "temperature",
-                label: "Température",
-                description: "Distribution spatiale de la température",
-                type: "thematic-map",
-                visualization: "heatmap",
-                icon: Thermometer,
-            },
-            {
-                id: "humidity",
-                label: "Humidité",
-                description: "Distribution spatiale de l'humidité",
-                type: "thematic-map",
-                visualization: "heatmap",
-                icon: Droplets,
-            },
-            {
-                id: "wind",
-                label: "Vent",
-                description: "Direction et intensité du vent",
-                type: "thematic-map",
-                visualization: "flow",
-                icon: Wind,
-            },
-            {
-                id: "solar",
-                label: "Rayonnement solaire",
-                description: "Potentiel de rayonnement solaire",
-                type: "thematic-map",
-                visualization: "heatmap",
-                icon: Sun,
-            },
-            {
-                id: "evapotranspiration",
-                label: "Évapotranspiration",
-                description: "Évapotranspiration spatiale",
-                type: "thematic-map",
-                visualization: "choropleth",
-                icon: Activity,
-            },
-        ],
+        label: "Disponibilité des dépendances",
+        description: "Vérifie si les dépendances nécessaires sont prêtes.",
+        method: "GET",
+        path: "/health/ready",
+        category: "Système",
     },
-
     {
-        id: "agriculture",
-        label: "Agriculture",
-        icon: Sprout,
-        color: "text-green-600",
-        layers: [
-            {
-                id: "cultivated-zones",
-                label: "Zones cultivées",
-                description: "Localisation des zones agricoles cultivées",
-                type: "thematic-map",
-                visualization: "polygons",
-                icon: Sprout,
-            },
-            {
-                id: "crop-distribution",
-                label: "Répartition des cultures",
-                description: "Répartition spatiale des cultures",
-                type: "thematic-map",
-                visualization: "categorical-map",
-                icon: Sprout,
-            },
-            {
-                id: "yield",
-                label: "Rendements",
-                description: "Rendement agricole par zone",
-                type: "thematic-map",
-                visualization: "choropleth",
-                icon: TrendingUp,
-            },
-            {
-                id: "production",
-                label: "Production agricole",
-                description: "Production agricole par territoire",
-                type: "thematic-map",
-                visualization: "choropleth",
-                icon: BarChart3,
-            },
-            {
-                id: "irrigated-zones",
-                label: "Zones irriguées",
-                description: "Zones agricoles bénéficiant de l'irrigation",
-                type: "thematic-map",
-                visualization: "polygons",
-                icon: Waves,
-            },
-        ],
+        label: "Données agricoles",
+        description: "Récupère les données agricoles disponibles.",
+        method: "GET",
+        path: "/api/v1/agriculture",
+        category: "Agriculture",
     },
-
     {
-        id: "soil",
-        label: "Sols",
-        icon: Mountain,
-        color: "text-amber-700",
-        layers: [
-            {
-                id: "soil-type",
-                label: "Types de sols",
-                description: "Classification spatiale des sols",
-                type: "thematic-map",
-                visualization: "categorical-map",
-                icon: Mountain,
-            },
-            {
-                id: "soil-fertility",
-                label: "Fertilité",
-                description: "Indice de fertilité des sols",
-                type: "thematic-map",
-                visualization: "choropleth",
-                icon: Sprout,
-            },
-            {
-                id: "soil-salinity",
-                label: "Salinité",
-                description: "Niveau de salinité des sols",
-                type: "thematic-map",
-                visualization: "heatmap",
-                icon: Waves,
-            },
-        ],
+        label: "Observations climatiques",
+        description: "Récupère les observations climatiques.",
+        method: "GET",
+        path: "/api/v1/climat",
+        category: "Climat",
     },
-
     {
-        id: "water",
-        label: "Eau",
-        icon: Waves,
-        color: "text-cyan-600",
-        layers: [
-            {
-                id: "rivers",
-                label: "Cours d'eau",
-                description: "Réseau hydrographique",
-                type: "point-line",
-                visualization: "lines",
-                icon: Waves,
-            },
-            {
-                id: "lakes",
-                label: "Lacs et retenues",
-                description: "Plans et retenues d'eau",
-                type: "point-polygon",
-                visualization: "polygons",
-                icon: Waves,
-            },
-            {
-                id: "groundwater",
-                label: "Nappes phréatiques",
-                description: "Informations spatiales sur les nappes",
-                type: "thematic-map",
-                visualization: "choropleth",
-                icon: Droplets,
-            },
-            {
-                id: "water-availability",
-                label: "Disponibilité en eau",
-                description: "Indice de disponibilité de la ressource",
-                type: "thematic-map",
-                visualization: "choropleth",
-                icon: Droplets,
-            },
-        ],
+        label: "Campagnes agroclimatiques",
+        description: "Récupère les campagnes agroclimatiques.",
+        method: "GET",
+        path: "/api/v1/agroclimat",
+        category: "Agroclimat",
     },
-
     {
-        id: "satellite",
-        label: "Observation satellite",
-        icon: Satellite,
-        color: "text-purple-600",
-        layers: [
-            {
-                id: "satellite-imagery",
-                label: "Imagerie satellite",
-                description: "Fond d'imagerie satellite",
-                type: "raster",
-                visualization: "imagery",
-                icon: Satellite,
-            },
-            {
-                id: "ndvi",
-                label: "NDVI",
-                description: "Indice de végétation NDVI",
-                type: "raster",
-                visualization: "raster-gradient",
-                icon: Satellite,
-            },
-            {
-                id: "evi",
-                label: "EVI",
-                description: "Indice de végétation amélioré",
-                type: "raster",
-                visualization: "raster-gradient",
-                icon: Satellite,
-            },
-            {
-                id: "ndwi",
-                label: "NDWI",
-                description: "Indice différentiel de l'eau",
-                type: "raster",
-                visualization: "raster-gradient",
-                icon: Waves,
-            },
-            {
-                id: "land-surface-temperature",
-                label: "Température de surface",
-                description: "Température de surface terrestre",
-                type: "raster",
-                visualization: "heatmap",
-                icon: Thermometer,
-            },
-        ],
+        label: "Zones géographiques",
+        description: "Récupère les zones géographiques.",
+        method: "GET",
+        path: "/api/v1/zones",
+        category: "Géographie",
     },
-
     {
-        id: "risks",
-        label: "Risques",
-        icon: AlertTriangle,
-        color: "text-red-600",
-        layers: [
-            {
-                id: "drought",
-                label: "Sécheresse",
-                description: "Niveau spatial du risque de sécheresse",
-                type: "risk-map",
-                visualization: "choropleth",
-                icon: AlertTriangle,
-            },
-            {
-                id: "flood",
-                label: "Inondation",
-                description: "Zones potentiellement exposées aux inondations",
-                type: "risk-map",
-                visualization: "polygons",
-                icon: Waves,
-            },
-            {
-                id: "heat-stress",
-                label: "Stress thermique",
-                description: "Zones exposées au stress thermique",
-                type: "risk-map",
-                visualization: "heatmap",
-                icon: Thermometer,
-            },
-            {
-                id: "phytosanitary",
-                label: "Risque phytosanitaire",
-                description: "Zones présentant un risque phytosanitaire",
-                type: "risk-map",
-                visualization: "choropleth",
-                icon: Sprout,
-            },
-            {
-                id: "water-stress",
-                label: "Stress hydrique",
-                description: "Niveau de stress hydrique",
-                type: "risk-map",
-                visualization: "choropleth",
-                icon: Droplets,
-            },
-        ],
+        label: "Stations climatiques",
+        description: "Récupère les stations météorologiques.",
+        method: "GET",
+        path: "/api/v1/stations",
+        category: "Climat",
     },
-
     {
-        id: "infrastructure",
-        label: "Infrastructures",
-        icon: Building2,
-        color: "text-orange-600",
-        layers: [
-            {
-                id: "markets",
-                label: "Marchés agricoles",
-                description: "Localisation des marchés",
-                type: "point",
-                visualization: "marker",
-                icon: MapPinned,
-            },
-            {
-                id: "storage",
-                label: "Entrepôts / stockage",
-                description: "Infrastructures de stockage",
-                type: "point",
-                visualization: "marker",
-                icon: Building2,
-            },
-            {
-                id: "processing",
-                label: "Unités de transformation",
-                description: "Unités de transformation agricole",
-                type: "point",
-                visualization: "marker",
-                icon: Building2,
-            },
-            {
-                id: "weather-stations",
-                label: "Stations météorologiques",
-                description: "Stations de mesure météorologique",
-                type: "point",
-                visualization: "marker",
-                icon: CloudRain,
-            },
-            {
-                id: "boreholes",
-                label: "Forages",
-                description: "Localisation des forages",
-                type: "point",
-                visualization: "marker",
-                icon: Droplets,
-            },
-            {
-                id: "dams",
-                label: "Barrages / retenues",
-                description: "Ouvrages hydrauliques",
-                type: "point-polygon",
-                visualization: "marker",
-                icon: Waves,
-            },
-            {
-                id: "roads",
-                label: "Routes",
-                description: "Réseau routier utile à la chaîne agricole",
-                type: "line",
-                visualization: "lines",
-                icon: MapIcon,
-            },
-        ],
+        label: "Produits agricoles",
+        description: "Récupère les produits agricoles disponibles.",
+        method: "GET",
+        path: "/api/v1/produits",
+        category: "Agriculture",
     },
-
-    /*
-    |--------------------------------------------------------------------------
-    | SURCOUCHES DE QUANTIFICATION
-    |--------------------------------------------------------------------------
-    | Ces couches sont particulièrement importantes pour Assaman-Suuf.
-    |
-    | Elles ne montrent pas seulement "où se trouve quelque chose".
-    | Elles permettent également de représenter COMBIEN d'éléments
-    | correspondent aux critères actifs.
-    |--------------------------------------------------------------------------
-    */
-
     {
-        id: "quantification",
-        label: "Quantification spatiale",
-        icon: Gauge,
-        color: "text-indigo-600",
-        layers: [
-            {
-                id: "exploitation-count",
-                label: "Nombre d'exploitations",
-                description:
-                    "Nombre d'exploitations correspondant aux filtres actifs",
-                type: "quantitative-overlay",
-                visualization: "proportional-symbol",
-                icon: Building2,
-            },
-            {
-                id: "plot-count",
-                label: "Nombre de parcelles",
-                description: "Nombre de parcelles agricoles par zone",
-                type: "quantitative-overlay",
-                visualization: "proportional-symbol",
-                icon: Sprout,
-            },
-            {
-                id: "infrastructure-count",
-                label: "Nombre d'infrastructures",
-                description:
-                    "Nombre d'infrastructures correspondant aux filtres actifs",
-                type: "quantitative-overlay",
-                visualization: "bubble",
-                icon: Building2,
-            },
-            {
-                id: "production-volume",
-                label: "Volume de production",
-                description: "Volume de production représenté spatialement",
-                type: "quantitative-overlay",
-                visualization: "proportional-symbol",
-                icon: BarChart3,
-            },
-            {
-                id: "cultivated-area",
-                label: "Surface cultivée",
-                description: "Surface agricole cultivée par zone",
-                type: "quantitative-overlay",
-                visualization: "proportional-symbol",
-                icon: Sprout,
-            },
-            {
-                id: "yield-indicator",
-                label: "Indicateur de rendement",
-                description: "Représentation quantitative du rendement",
-                type: "quantitative-overlay",
-                visualization: "graduated-symbol",
-                icon: TrendingUp,
-            },
-        ],
+        label: "Options de prédiction",
+        description: "Récupère les options acceptées par le modèle.",
+        method: "GET",
+        path: "/api/v1/predictions/options",
+        category: "Prédictions",
     },
-
-    /*
-    |--------------------------------------------------------------------------
-    | DENSITÉ / CONCENTRATION
-    |--------------------------------------------------------------------------
-    */
-
     {
-        id: "density",
-        label: "Densité et concentration",
-        icon: Activity,
-        color: "text-fuchsia-600",
-        layers: [
-            {
-                id: "farm-density",
-                label: "Densité des exploitations",
-                description: "Concentration spatiale des exploitations",
-                type: "density",
-                visualization: "heatmap",
-                icon: Sprout,
-            },
-            {
-                id: "infrastructure-density",
-                label: "Densité des infrastructures",
-                description: "Concentration des infrastructures",
-                type: "density",
-                visualization: "heatmap",
-                icon: Building2,
-            },
-            {
-                id: "risk-density",
-                label: "Concentration des risques",
-                description: "Concentration spatiale des zones à risque",
-                type: "density",
-                visualization: "heatmap",
-                icon: AlertTriangle,
-            },
-        ],
+        label: "Prédiction du rendement",
+        description: "Soumet une demande de prédiction de rendement.",
+        method: "POST",
+        path: "/api/v1/predictions/rendement",
+        category: "Prédictions",
     },
 ];
 
-/*
-|--------------------------------------------------------------------------
-| FONDS DE CARTE
-|--------------------------------------------------------------------------
-*/
-
-const baseMaps = [
-    {
-        id: "light",
-        label: "Clair",
-        icon: MapIcon,
-    },
-    {
-        id: "satellite",
-        label: "Satellite",
-        icon: Satellite,
-    },
-    {
-        id: "terrain",
-        label: "Terrain",
-        icon: Mountain,
-    },
-    {
-        id: "dark",
-        label: "Sombre",
-        icon: MapIcon,
-    },
-];
-
-/*
-|--------------------------------------------------------------------------
-| PRESETS DE COUCHES
-|--------------------------------------------------------------------------
-*/
-
-const layerPresets = [
-    {
-        id: "agriculture",
-        label: "Agriculture",
-        description: "Cultures, rendements, surfaces et eau",
-        layers: [
-            "cultivated-zones",
-            "crop-distribution",
-            "yield",
-            "production",
-            "irrigated-zones",
-            "water-availability",
-        ],
-    },
-    {
-        id: "climate",
-        label: "Climat",
-        description: "Principales variables climatiques",
-        layers: [
-            "rainfall",
-            "temperature",
-            "humidity",
-            "wind",
-            "evapotranspiration",
-        ],
-    },
-    {
-        id: "risks",
-        label: "Risques",
-        description: "Sécheresse, inondation et stress",
-        layers: [
-            "drought",
-            "flood",
-            "heat-stress",
-            "water-stress",
-            "phytosanitary",
-        ],
-    },
-    {
-        id: "decision",
-        label: "Aide à la décision",
-        description: "Infrastructure, agriculture et quantification",
-        layers: [
-            "markets",
-            "storage",
-            "processing",
-            "weather-stations",
-            "boreholes",
-            "exploitation-count",
-            "infrastructure-count",
-        ],
-    },
-];
-
-/*
-|--------------------------------------------------------------------------
-| HELPERS
-|--------------------------------------------------------------------------
-*/
-
-const flattenLayers = () =>
-    layerCategories.flatMap((category) =>
-        category.layers.map((layer) => ({
-            ...layer,
-            categoryId: category.id,
-            categoryLabel: category.label,
-        }))
-    );
-
-const allLayers = flattenLayers();
-
-const getLayerById = (layerId) =>
-    allLayers.find((layer) => layer.id === layerId);
-
-/*
-|--------------------------------------------------------------------------
-| INITIALISATION DES COUCHES
-|--------------------------------------------------------------------------
-*/
-
-const initialActiveLayers = {
-    regions: true,
-    departments: false,
-    communes: false,
-    "agricultural-zones": false,
-
-    rainfall: true,
-    temperature: false,
-    humidity: false,
-    wind: false,
-    solar: false,
-    evapotranspiration: false,
-
-    "cultivated-zones": true,
-    "crop-distribution": false,
-    yield: false,
-    production: false,
-    "irrigated-zones": false,
-
-    "soil-type": false,
-    "soil-fertility": false,
-    "soil-salinity": false,
-
-    rivers: false,
-    lakes: false,
-    groundwater: false,
-    "water-availability": false,
-
-    "satellite-imagery": false,
-    ndvi: false,
-    evi: false,
-    ndwi: false,
-    "land-surface-temperature": false,
-
-    drought: false,
-    flood: false,
-    "heat-stress": false,
-    phytosanitary: false,
-    "water-stress": false,
-
-    markets: false,
-    storage: false,
-    processing: false,
-    "weather-stations": false,
-    boreholes: false,
-    dams: false,
-    roads: false,
-
-    "exploitation-count": false,
-    "plot-count": false,
-    "infrastructure-count": false,
-    "production-volume": false,
-    "cultivated-area": false,
-    "yield-indicator": false,
-
-    "farm-density": false,
-    "infrastructure-density": false,
-    "risk-density": false,
-};
-
-const initialLayerSettings = Object.fromEntries(
-    allLayers.map((layer) => [
-        layer.id,
-        {
-            opacity: 75,
-            visible: true,
-            style: layer.visualization,
-        },
-    ])
-);
-
-
-/*
-|--------------------------------------------------------------------------
-| APERÇU DES COUCHES SUR LA CARTE
-|--------------------------------------------------------------------------
-| Ceci montre visuellement le concept de superposition.
-| Dans la vraie application, MapLibre GL JS / Leaflet rendra réellement
-| les données GIS.
-|--------------------------------------------------------------------------
-*/
-
-function ActiveLayerStack({
-                              activeLayerIds,
-                              layerSettings,
-                              onRemove,
-                          }) {
-    if (activeLayerIds.length === 0) {
-        return null;
-    }
-
-    return (
-        <div className="absolute bottom-24 left-4 z-20 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/70 bg-white/95 p-3 shadow-xl backdrop-blur-xl">
-            <div className="mb-2 flex items-center justify-between">
-                <div>
-                    <p className="text-xs font-bold text-slate-900">
-                        Couches actives
-                    </p>
-                    <p className="text-[10px] text-slate-500">
-                        {activeLayerIds.length} surcouche
-                        {activeLayerIds.length > 1 ? "s" : ""}
-                    </p>
-                </div>
-
-                <Layers size={16} className="text-slate-400" />
-            </div>
-
-            <div className="space-y-1.5">
-                {activeLayerIds.slice(0, 5).map((layerId) => {
-                    const layer = getLayerById(layerId);
-
-                    if (!layer) return null;
-
-                    return (
-                        <div
-                            key={layer.id}
-                            className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2"
-                        >
-                            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white">
-                                <layer.icon size={14} />
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                                <p className="truncate text-[11px] font-medium text-slate-800">
-                                    {layer.label}
-                                </p>
-
-                                <div className="mt-1 h-1 overflow-hidden rounded-full bg-slate-200">
-                                    <div
-                                        className="h-full rounded-full bg-green-500"
-                                        style={{
-                                            width: `${layerSettings[layer.id]?.opacity ?? 75}%`,
-                                        }}
-                                    />
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={() => onRemove(layer.id)}
-                                className="text-slate-400 hover:text-red-500"
-                            >
-                                <X size={14} />
-                            </button>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {activeLayerIds.length > 5 && (
-                <p className="mt-2 text-center text-[10px] text-slate-400">
-                    + {activeLayerIds.length - 5} autres couches
-                </p>
-            )}
-        </div>
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| MARQUEURS DE DÉMONSTRATION
-|--------------------------------------------------------------------------
-*/
-
-function DemoMarkers({ onSelectZone }) {
-    const markers = [
-        {
-            name: "Kaffrine",
-            position: "left-[45%] top-[55%]",
-            color: "bg-green-600",
-        },
-        {
-            name: "Kaolack",
-            position: "left-[39%] top-[65%]",
-            color: "bg-blue-600",
-        },
-        {
-            name: "Saint-Louis",
-            position: "left-[38%] top-[30%]",
-            color: "bg-orange-500",
-        },
-    ];
-
-    return (
-        <>
-            {markers.map((marker) => (
-                <button
-                    key={marker.name}
-                    onClick={() => onSelectZone(marker.name)}
-                    className={`absolute ${marker.position} z-10 group`}
-                >
-          <span
-              className={`flex h-9 w-9 items-center justify-center rounded-full ${marker.color} text-white shadow-lg ring-4 ring-white/70 transition group-hover:scale-110`}
-          >
-            <MapPinned size={17} />
-          </span>
-
-                    <span className="absolute left-1/2 top-11 -translate-x-1/2 whitespace-nowrap rounded-md bg-white px-2 py-1 text-[10px] font-semibold text-slate-800 shadow-md">
-            {marker.name}
-          </span>
-                </button>
-            ))}
-        </>
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| LÉGENDE
-|--------------------------------------------------------------------------
-*/
-
-function MapLegend({ activeLayerIds }) {
-    const visibleLayers = activeLayerIds
-        .map((id) => getLayerById(id))
-        .filter(Boolean)
-        .slice(0, 4);
-
-    if (visibleLayers.length === 0) return null;
-
-    return (
-        <div className="absolute bottom-24 right-4 z-20 hidden w-56 rounded-2xl border border-white/70 bg-white/95 p-3 shadow-xl backdrop-blur-xl lg:block">
-            <div className="mb-2 flex items-center gap-2">
-                <Eye size={15} className="text-slate-500" />
-                <span className="text-xs font-bold text-slate-900">
-          Légende cartographique
-        </span>
-            </div>
-
-            <div className="space-y-2">
-                {visibleLayers.map((layer) => (
-                    <div key={layer.id} className="flex items-center gap-2">
-                        <span className="h-3 w-3 rounded-sm bg-slate-300" />
-
-                        <span className="flex-1 text-[10px] text-slate-600">
-              {layer.label}
-            </span>
-
-                        <span className="text-[9px] text-slate-400">
-              {layer.visualization}
-            </span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| CARTE
-|--------------------------------------------------------------------------
-*/
-
-function LocationMapDashboard({
-                                  selectedZone,
-                                  onSelectZone,
-                                  zoom,
-                                  setZoom,
-                                  baseMap,
-                                  onOpenBaseMap,
-                                  activeLayerIds,
-                                  layerSettings,
-                                  onRemoveLayer,
-                                  onLocate,
-                                  onHandleUserProfile,
-                                  onHandleUserSettings,
-                                  onHandleUserBells,
-                                  onHandleUserOthersOptions,
-                                  onQueryApi,
-                                  apiLoading,
-                              }) {
-    return (
-        <main className="absolute inset-0 overflow-hidden bg-slate-200">
-            {/* Placeholder cartographique */}
-            <div className="absolute inset-0">
-                <img
-                    src="../assets/images/carte_senegal.png"
-                    alt="Carte du Sénégal"
-                    className={`h-full w-full object-cover ${
-                        baseMap === "Sombre"
-                            ? "brightness-50 grayscale"
-                            : baseMap === "Satellite"
-                                ? "brightness-90 saturate-125"
-                                : baseMap === "Terrain"
-                                    ? "sepia-[0.15]"
-                                    : ""
-                    }`}
-                />
-
-                <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-slate-900/20" />
-
-                {/* Démonstration visuelle des couches */}
-                {activeLayerIds.includes("rainfall") && (
-                    <div className="pointer-events-none absolute inset-0 bg-blue-500/10" />
-                )}
-
-                {activeLayerIds.includes("temperature") && (
-                    <div className="pointer-events-none absolute inset-0 bg-orange-500/10 mix-blend-multiply" />
-                )}
-
-                {activeLayerIds.includes("drought") && (
-                    <div className="pointer-events-none absolute inset-0 bg-red-500/10 mix-blend-multiply" />
-                )}
-
-                {activeLayerIds.includes("ndvi") && (
-                    <div className="pointer-events-none absolute inset-0 bg-green-500/10 mix-blend-multiply" />
-                )}
-
-                {activeLayerIds.includes("farm-density") && (
-                    <div className="pointer-events-none absolute left-[35%] top-[45%] h-52 w-52 rounded-full bg-purple-500/20 blur-3xl" />
-                )}
-
-                {activeLayerIds.includes("infrastructure-density") && (
-                    <div className="pointer-events-none absolute left-[45%] top-[55%] h-40 w-40 rounded-full bg-orange-500/20 blur-3xl" />
-                )}
-            </div>
-
-            <MapControls
-                zoom={zoom}
-                setZoom={setZoom}
-                onLocate={onLocate}
-                baseMap={baseMap}
-                onOpenBaseMap={onOpenBaseMap}
-            />
-
-            <button
-                type="button"
-                onClick={onQueryApi}
-                disabled={apiLoading}
-                title={apiLoading ? "Interrogation de l'API en cours" : "Interroger l'API des zones"}
-                aria-label={apiLoading ? "Interrogation de l'API en cours" : "Interroger l'API des zones"}
-                className="absolute bottom-36 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-xl border border-white/70 bg-white/95 text-slate-700 shadow-xl backdrop-blur transition hover:bg-green-50 hover:text-green-800 disabled:cursor-wait disabled:opacity-70"
-            >
-                {apiLoading ? <RefreshCw size={18} className="animate-spin" /> : <Database size={18} />}
-            </button>
-
-            <DemoMarkers onSelectZone={onSelectZone} />
-
-            <ActiveLayerStack
-                activeLayerIds={activeLayerIds}
-                layerSettings={layerSettings}
-                onRemove={onRemoveLayer}
-            />
-
-            <MapLegend activeLayerIds={activeLayerIds} />
-
-            <LogControlOptions
-                onHandleUserProfile={onHandleUserProfile}
-                onHandleUserSettings={onHandleUserSettings}
-                onHandleUserBells={onHandleUserBells}
-                onHandleUserOthersOptions={onHandleUserOthersOptions}
-            />
-
-            {selectedZone && (
-                <ZoneInformationPanel
-                    zone={selectedZone}
-                    onClose={() => onSelectZone(null)}
-                />
-            )}
-
-            <div className="absolute bottom-24 left-1/2 z-10 hidden -translate-x-1/2 rounded-full border border-white/70 bg-white/90 px-4 py-2 text-[10px] text-slate-500 shadow-lg backdrop-blur md:block">
-                Démonstration cartographique — données GIS à connecter
-            </div>
-        </main>
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| INFORMATIONS D'UNE ZONE
-|--------------------------------------------------------------------------
-*/
-
-function ZoneInformationPanel({ zone, onClose }) {
-    const data = zoneData[zone];
-
-    if (!data) return null;
-
-    return (
-        <aside className="absolute bottom-24 left-4 z-30 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-white/80 bg-white/95 shadow-2xl backdrop-blur-xl">
-            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-                <div>
-                    <p className="text-[10px] uppercase tracking-wider text-slate-400">
-                        Zone sélectionnée
-                    </p>
-                    <h2 className="text-base font-bold text-slate-900">{zone}</h2>
-                </div>
-
-                <button
-                    onClick={onClose}
-                    className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                >
-                    <X size={17} />
-                </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 p-3">
-                <Metric label="Précipitations" value={data.rainfall} />
-                <Metric label="Température" value={data.temperature} />
-                <Metric label="NDVI" value={data.ndvi} />
-                <Metric label="Culture" value={data.crop} />
-                <Metric label="Sécheresse" value={data.drought} />
-                <Metric label="Agriculture" value={data.agriculture} />
-            </div>
-        </aside>
-    );
-}
-
-function Metric({ label, value }) {
-    return (
-        <div className="rounded-xl bg-slate-50 p-3">
-            <p className="text-[9px] uppercase tracking-wide text-slate-400">
-                {label}
-            </p>
-            <p className="mt-1 text-xs font-semibold text-slate-800">{value}</p>
-        </div>
-    );
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| PANNEAU COUCHES
-|--------------------------------------------------------------------------
-*/
-
-function LayerPanel({
-                        activeLayers,
-                        setActiveLayers,
-                        layerSettings,
-                        setLayerSettings,
-                        activeLayerOrder,
-                        setActiveLayerOrder,
-                        baseMap,
-                        setBaseMap,
-                        onClose,
-                    }) {
-    const [search, setSearch] = useState("");
-    const [expandedCategories, setExpandedCategories] = useState(
-        Object.fromEntries(
-            layerCategories.map((category) => [category.id, false])
-        )
-    );
-
-    const [showActiveOnly, setShowActiveOnly] = useState(false);
-    const [showPresets, setShowPresets] = useState(true);
-
-    const activeLayerIds = activeLayerOrder.filter(
-        (id) => activeLayers[id]
-    );
-
-    const filteredCategories = useMemo(() => {
-        const query = search.trim().toLowerCase();
-
-        return layerCategories
-            .map((category) => ({
-                ...category,
-                layers: category.layers.filter((layer) => {
-                    const matchesSearch =
-                        !query ||
-                        layer.label.toLowerCase().includes(query) ||
-                        layer.description.toLowerCase().includes(query);
-
-                    const matchesActive =
-                        !showActiveOnly || activeLayers[layer.id];
-
-                    return matchesSearch && matchesActive;
-                }),
-            }))
-            .filter((category) => category.layers.length > 0);
-    }, [search, showActiveOnly, activeLayers]);
-
-    const toggleCategory = (categoryId) => {
-        setExpandedCategories((current) => ({
-            ...current,
-            [categoryId]: !current[categoryId],
-        }));
-    };
-
-    const toggleLayer = (layerId) => {
-        setActiveLayers((current) => ({
-            ...current,
-            [layerId]: !current[layerId],
-        }));
-
-        setActiveLayerOrder((current) => {
-            if (activeLayers[layerId]) {
-                return current.filter((id) => id !== layerId);
-            }
-
-            return [...current.filter((id) => id !== layerId), layerId];
-        });
-    };
-
-    const updateLayerSetting = (layerId, key, value) => {
-        setLayerSettings((current) => ({
-            ...current,
-            [layerId]: {
-                ...current[layerId],
-                [key]: value,
-            },
-        }));
-    };
-
-    const removeLayer = (layerId) => {
-        setActiveLayers((current) => ({
-            ...current,
-            [layerId]: false,
-        }));
-
-        setActiveLayerOrder((current) =>
-            current.filter((id) => id !== layerId)
-        );
-    };
-
-    const moveLayer = (layerId, direction) => {
-        setActiveLayerOrder((current) => {
-            const index = current.indexOf(layerId);
-
-            if (index === -1) return current;
-
-            const nextIndex =
-                direction === "up"
-                    ? Math.max(0, index - 1)
-                    : Math.min(current.length - 1, index + 1);
-
-            if (index === nextIndex) return current;
-
-            const next = [...current];
-            [next[index], next[nextIndex]] = [
-                next[nextIndex],
-                next[index],
-            ];
-
-            return next;
-        });
-    };
-
-    const clearAllLayers = () => {
-        setActiveLayers((current) =>
-            Object.fromEntries(
-                Object.keys(current).map((key) => [key, false])
-            )
-        );
-
-        setActiveLayerOrder([]);
-    };
-
-    const applyPreset = (preset) => {
-        const presetIds = new Set(preset.layers);
-
-        setActiveLayers((current) =>
-            Object.fromEntries(
-                Object.keys(current).map((key) => [
-                    key,
-                    presetIds.has(key),
-                ])
-            )
-        );
-
-        setActiveLayerOrder(preset.layers);
-    };
-
-    return (
-        <PanelShell
-            title="Couches cartographiques"
-            subtitle="Composez la représentation de votre territoire"
-            icon={Layers}
-            onClose={onClose}
-            width="w-[470px]"
-        >
-            {/* Explication */}
-            <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-3">
-                <div className="flex gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-indigo-600">
-                        <Layers size={16} />
-                    </div>
-
-                    <div>
-                        <p className="text-xs font-bold text-indigo-900">
-                            Construisez votre vue cartographique
-                        </p>
-
-                        <p className="mt-1 text-[10px] leading-4 text-indigo-700">
-                            Les couches ajoutent des cartes, repères, densités,
-                            compteurs et autres représentations par-dessus le fond
-                            cartographique.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Fond de carte */}
-            <section className="mt-4">
-                <SectionTitle
-                    icon={MapIcon}
-                    title="Fond de carte"
-                />
-
-                <div className="grid grid-cols-4 gap-2">
-                    {baseMaps.map((map) => {
-                        const Icon = map.icon;
-                        const selected = baseMap === map.label;
-
-                        return (
-                            <button
-                                key={map.id}
-                                onClick={() => setBaseMap(map.label)}
-                                className={`rounded-xl border p-2 transition ${
-                                    selected
-                                        ? "border-green-500 bg-green-50 text-green-700"
-                                        : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                                }`}
-                            >
-                                <Icon size={17} className="mx-auto" />
-                                <span className="mt-1 block text-[9px] font-medium">
-                  {map.label}
-                </span>
-                            </button>
-                        );
-                    })}
-                </div>
-            </section>
-
-            {/* Recherche */}
-            <div className="mt-4 flex gap-2">
-                <div className="relative flex-1">
-                    <Search
-                        size={15}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                    />
-
-                    <input
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                        placeholder="Rechercher une couche..."
-                        className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-xs outline-none focus:border-green-500 focus:bg-white"
-                    />
-                </div>
-
-                <button
-                    onClick={() => setShowActiveOnly((value) => !value)}
-                    className={`flex h-10 items-center gap-2 rounded-xl border px-3 text-[10px] font-semibold ${
-                        showActiveOnly
-                            ? "border-green-500 bg-green-50 text-green-700"
-                            : "border-slate-200 bg-white text-slate-500"
-                    }`}
-                >
-                    <Check size={14} />
-                    Actives
-                </button>
-            </div>
-
-            {/* Presets */}
-            <section className="mt-4">
-                <button
-                    onClick={() => setShowPresets((value) => !value)}
-                    className="flex w-full items-center justify-between"
-                >
-                    <SectionTitle
-                        icon={Gauge}
-                        title="Vues prédéfinies"
-                    />
-
-                    {showPresets ? (
-                        <ChevronUp size={15} />
-                    ) : (
-                        <ChevronDown size={15} />
-                    )}
-                </button>
-
-                {showPresets && (
-                    <div className="grid grid-cols-2 gap-2">
-                        {layerPresets.map((preset) => (
-                            <button
-                                key={preset.id}
-                                onClick={() => applyPreset(preset)}
-                                className="rounded-xl border border-slate-200 bg-white p-3 text-left hover:border-green-300 hover:bg-green-50"
-                            >
-                                <p className="text-xs font-semibold text-slate-800">
-                                    {preset.label}
-                                </p>
-                                <p className="mt-1 text-[9px] leading-4 text-slate-400">
-                                    {preset.description}
-                                </p>
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </section>
-
-            {/* Couches actives */}
-            {activeLayerIds.length > 0 && (
-                <section className="mt-5">
-                    <div className="mb-2 flex items-center justify-between">
-                        <SectionTitle
-                            icon={Eye}
-                            title={`Couches actives (${activeLayerIds.length})`}
-                        />
-
-                        <button
-                            onClick={clearAllLayers}
-                            className="text-[10px] font-semibold text-red-500 hover:text-red-600"
-                        >
-                            Tout retirer
-                        </button>
-                    </div>
-
-                    <div className="space-y-2">
-                        {activeLayerIds.map((layerId, index) => {
-                            const layer = getLayerById(layerId);
-
-                            if (!layer) return null;
-
-                            const settings = layerSettings[layerId];
-
-                            return (
-                                <div
-                                    key={layerId}
-                                    className="rounded-xl border border-green-100 bg-green-50/60 p-3"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-green-700">
-                                            <layer.icon size={15} />
-                                        </div>
-
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate text-xs font-semibold text-slate-800">
-                                                {layer.label}
-                                            </p>
-
-                                            <p className="text-[9px] text-slate-400">
-                                                {layer.visualization}
-                                            </p>
-                                        </div>
-
-                                        <button
-                                            onClick={() => removeLayer(layerId)}
-                                            className="text-slate-400 hover:text-red-500"
-                                        >
-                                            <X size={15} />
-                                        </button>
-                                    </div>
-
-                                    <div className="mt-3">
-                                        <div className="mb-1 flex justify-between text-[9px] text-slate-500">
-                                            <span>Opacité</span>
-                                            <span>{settings.opacity}%</span>
-                                        </div>
-
-                                        <input
-                                            type="range"
-                                            min="10"
-                                            max="100"
-                                            value={settings.opacity}
-                                            onChange={(event) =>
-                                                updateLayerSetting(
-                                                    layerId,
-                                                    "opacity",
-                                                    Number(event.target.value)
-                                                )
-                                            }
-                                            className="w-full accent-green-600"
-                                        />
-                                    </div>
-
-                                    <div className="mt-2 flex gap-1">
-                                        <button
-                                            onClick={() =>
-                                                updateLayerSetting(
-                                                    layerId,
-                                                    "visible",
-                                                    !settings.visible
-                                                )
-                                            }
-                                            className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-white px-2 py-1.5 text-[9px] font-semibold text-slate-600"
-                                        >
-                                            {settings.visible ? (
-                                                <Eye size={12} />
-                                            ) : (
-                                                <EyeOff size={12} />
-                                            )}
-                                            {settings.visible ? "Visible" : "Masquée"}
-                                        </button>
-
-                                        <button
-                                            disabled={index === 0}
-                                            onClick={() =>
-                                                moveLayer(layerId, "up")
-                                            }
-                                            className="rounded-lg bg-white px-2 text-slate-500 disabled:opacity-30"
-                                            title="Monter"
-                                        >
-                                            <MoveUp size={13} />
-                                        </button>
-
-                                        <button
-                                            disabled={
-                                                index === activeLayerIds.length - 1
-                                            }
-                                            onClick={() =>
-                                                moveLayer(layerId, "down")
-                                            }
-                                            className="rounded-lg bg-white px-2 text-slate-500 disabled:opacity-30"
-                                            title="Descendre"
-                                        >
-                                            <MoveDown size={13} />
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </section>
-            )}
-
-            {/* Catalogue des couches */}
-            <section className="mt-5">
-                <SectionTitle
-                    icon={Layers}
-                    title="Catalogue des couches"
-                />
-
-                <div className="space-y-2">
-                    {filteredCategories.map((category) => {
-                        const CategoryIcon = category.icon;
-                        const expanded =
-                            expandedCategories[category.id];
-
-                        const activeCount = category.layers.filter(
-                            (layer) => activeLayers[layer.id]
-                        ).length;
-
-                        return (
-                            <div
-                                key={category.id}
-                                className="overflow-hidden rounded-xl border border-slate-200 bg-white"
-                            >
-                                <button
-                                    onClick={() => toggleCategory(category.id)}
-                                    className="flex w-full items-center gap-3 px-3 py-3 text-left hover:bg-slate-50"
-                                >
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50">
-                                        <CategoryIcon
-                                            size={16}
-                                            className={category.color}
-                                        />
-                                    </div>
-
-                                    <div className="flex-1">
-                                        <p className="text-xs font-semibold text-slate-800">
-                                            {category.label}
-                                        </p>
-
-                                        <p className="text-[9px] text-slate-400">
-                                            {category.layers.length} couches
-                                            {activeCount > 0 &&
-                                                ` · ${activeCount} active${
-                                                    activeCount > 1 ? "s" : ""
-                                                }`}
-                                        </p>
-                                    </div>
-
-                                    {expanded ? (
-                                        <ChevronUp size={15} />
-                                    ) : (
-                                        <ChevronDown size={15} />
-                                    )}
-                                </button>
-
-                                {expanded && (
-                                    <div className="border-t border-slate-100 p-2">
-                                        {category.layers.map((layer) => {
-                                            const LayerIcon = layer.icon;
-                                            const active = activeLayers[layer.id];
-
-                                            return (
-                                                <button
-                                                    key={layer.id}
-                                                    onClick={() =>
-                                                        toggleLayer(layer.id)
-                                                    }
-                                                    className={`mb-1 flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition ${
-                                                        active
-                                                            ? "bg-green-50"
-                                                            : "hover:bg-slate-50"
-                                                    }`}
-                                                >
-                                                    <div
-                                                        className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                                                            active
-                                                                ? "bg-green-100 text-green-700"
-                                                                : "bg-slate-100 text-slate-500"
-                                                        }`}
-                                                    >
-                                                        <LayerIcon size={15} />
-                                                    </div>
-
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="text-[11px] font-semibold text-slate-800">
-                                                            {layer.label}
-                                                        </p>
-
-                                                        <p className="mt-0.5 text-[9px] leading-4 text-slate-400">
-                                                            {layer.description}
-                                                        </p>
-                                                    </div>
-
-                                                    <div
-                                                        className={`flex h-5 w-5 items-center justify-center rounded-md border ${
-                                                            active
-                                                                ? "border-green-600 bg-green-600 text-white"
-                                                                : "border-slate-300 bg-white"
-                                                        }`}
-                                                    >
-                                                        {active && <Check size={12} />}
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            </section>
-
-            {/* Légende */}
-            {activeLayerIds.length > 0 && (
-                <section className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <div className="flex items-center gap-2">
-                        <Eye size={15} className="text-slate-500" />
-                        <p className="text-xs font-semibold text-slate-800">
-                            Légende générée
-                        </p>
-                    </div>
-
-                    <div className="mt-3 space-y-2">
-                        {activeLayerIds.map((layerId) => {
-                            const layer = getLayerById(layerId);
-
-                            return (
-                                <div
-                                    key={layerId}
-                                    className="flex items-center gap-2"
-                                >
-                                    <span className="h-3 w-3 rounded-sm bg-slate-300" />
-
-                                    <span className="flex-1 text-[10px] text-slate-600">
-                    {layer?.label}
-                  </span>
-
-                                    <span className="text-[9px] text-slate-400">
-                    {layer?.visualization}
-                  </span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </section>
-            )}
-        </PanelShell>
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| ANALYSE
-|--------------------------------------------------------------------------
-*/
-
-function AnalysisPanel({ onClose, selectedZone }) {
-    return (
-        <PanelShell
-            title="Analyse territoriale"
-            subtitle="Analysez les relations entre climat, agriculture, eau et risques"
-            icon={BarChart3}
-            onClose={onClose}
-        >
-            <div className="space-y-3">
-                <AnalysisCard
-                    icon={CloudRain}
-                    title="Climat"
-                    description="Précipitations, température, humidité et évapotranspiration."
-                />
-
-                <AnalysisCard
-                    icon={Sprout}
-                    title="Agriculture"
-                    description="Cultures dominantes, surfaces, rendement et production."
-                />
-
-                <AnalysisCard
-                    icon={Droplets}
-                    title="Ressource en eau"
-                    description="Disponibilité, irrigation, nappes et stress hydrique."
-                />
-
-                <AnalysisCard
-                    icon={AlertTriangle}
-                    title="Risques"
-                    description="Sécheresse, inondation, chaleur et risques phytosanitaires."
-                />
-
-                <div className="rounded-2xl bg-green-50 p-4">
-                    <p className="text-xs font-bold text-green-900">
-                        Potentiel agricole global
-                    </p>
-
-                    <div className="mt-3 flex items-end gap-2">
-            <span className="text-3xl font-bold text-green-700">
-              78
-            </span>
-
-                        <span className="pb-1 text-xs text-green-600">
-              / 100
-            </span>
-                    </div>
-
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-green-100">
-                        <div className="h-full w-[78%] rounded-full bg-green-600" />
-                    </div>
-
-                    <p className="mt-2 text-[10px] text-green-700">
-                        Indicateur illustratif à remplacer par le moteur
-                        d'analyse réel.
-                    </p>
-                </div>
-
-                {selectedZone && (
-                    <div className="rounded-xl border border-slate-200 p-3">
-                        <p className="text-[10px] uppercase text-slate-400">
-                            Zone analysée
-                        </p>
-                        <p className="mt-1 text-sm font-bold text-slate-900">
-                            {selectedZone}
-                        </p>
-                    </div>
-                )}
-            </div>
-        </PanelShell>
-    );
-}
-
-function AnalysisCard({ icon: Icon, title, description }) {
-    return (
-        <div className="flex gap-3 rounded-xl border border-slate-200 bg-white p-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-50">
-                <Icon size={17} />
-            </div>
-
-            <div>
-                <p className="text-xs font-semibold text-slate-800">
-                    {title}
-                </p>
-
-                <p className="mt-1 text-[10px] leading-4 text-slate-500">
-                    {description}
-                </p>
-            </div>
-        </div>
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| RISQUES
-|--------------------------------------------------------------------------
-*/
-
-function RiskPanel({ onClose }) {
-    return (
-        <PanelShell
-            title="Risques & alertes"
-            subtitle="Surveillez les principaux risques agro-climatiques"
-            icon={AlertTriangle}
-            onClose={onClose}
-        >
-            <div className="space-y-2">
-                <RiskRow
-                    title="Sécheresse"
-                    value="Moyen"
-                    level="medium"
-                />
-
-                <RiskRow
-                    title="Inondation"
-                    value="Faible"
-                    level="low"
-                />
-
-                <RiskRow
-                    title="Stress thermique"
-                    value="Élevé"
-                    level="high"
-                />
-
-                <RiskRow
-                    title="Stress hydrique"
-                    value="Moyen"
-                    level="medium"
-                />
-
-                <RiskRow
-                    title="Risque phytosanitaire"
-                    value="À surveiller"
-                    level="medium"
-                />
-            </div>
-        </PanelShell>
-    );
-}
-
-function RiskRow({ title, value, level }) {
-    const styles = {
-        low: "bg-green-50 text-green-700",
-        medium: "bg-orange-50 text-orange-700",
-        high: "bg-red-50 text-red-700",
-    };
-
-    return (
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
-            <div
-                className={`flex h-9 w-9 items-center justify-center rounded-lg ${styles[level]}`}
-            >
-                <AlertTriangle size={16} />
-            </div>
-
-            <div className="flex-1">
-                <p className="text-xs font-semibold text-slate-800">
-                    {title}
-                </p>
-                <p className="text-[9px] text-slate-400">
-                    Niveau actuel
-                </p>
-            </div>
-
-            <span
-                className={`rounded-full px-2.5 py-1 text-[9px] font-bold ${styles[level]}`}
-            >
-        {value}
-      </span>
-        </div>
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| HISTORIQUE
-|--------------------------------------------------------------------------
-*/
-
-function HistoryPanel({ onClose }) {
-    return (
-        <PanelShell
-            title="Historique"
-            subtitle="Comparez l'évolution du territoire dans le temps"
-            icon={Activity}
-            onClose={onClose}
-        >
-            <div className="grid grid-cols-3 gap-2">
-                {["2024", "2025", "2026"].map((year) => (
-                    <button
-                        key={year}
-                        className="rounded-xl border border-slate-200 p-3 text-xs font-bold text-slate-700 hover:border-green-400 hover:bg-green-50"
-                    >
-                        {year}
-                    </button>
-                ))}
-            </div>
-
-            <div className="mt-4 rounded-2xl bg-slate-50 p-4">
-                <p className="text-xs font-bold text-slate-800">
-                    Comparaison temporelle
-                </p>
-
-                <p className="mt-1 text-[10px] leading-4 text-slate-500">
-                    Les données historiques pourront être comparées
-                    pour les cultures, rendements, infrastructures,
-                    précipitations, NDVI et risques.
-                </p>
-
-                <div className="mt-4 h-32 rounded-xl border border-dashed border-slate-300 bg-white">
-                    <div className="flex h-full items-center justify-center text-[10px] text-slate-400">
-                        Graphique historique à connecter
-                    </div>
-                </div>
-            </div>
-        </PanelShell>
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| SATELLITE
-|--------------------------------------------------------------------------
-*/
-
-function SatellitePanel({ onClose }) {
-    return (
-        <PanelShell
-            title="Observation satellite"
-            subtitle="Sélectionnez une variable issue de l'observation de la Terre"
-            icon={Satellite}
-            onClose={onClose}
-        >
-            <div className="grid grid-cols-2 gap-2">
-                {[
-                    ["NDVI", "Végétation"],
-                    ["EVI", "Végétation améliorée"],
-                    ["NDWI", "Eau"],
-                    ["LAI", "Indice foliaire"],
-                    ["LST", "Température surface"],
-                    ["Sentinel", "Imagerie"],
-                ].map(([title, description]) => (
-                    <button
-                        key={title}
-                        className="rounded-xl border border-slate-200 p-3 text-left hover:border-purple-300 hover:bg-purple-50"
-                    >
-                        <Satellite
-                            size={17}
-                            className="text-purple-600"
-                        />
-
-                        <p className="mt-2 text-xs font-bold text-slate-800">
-                            {title}
-                        </p>
-
-                        <p className="mt-1 text-[9px] text-slate-400">
-                            {description}
-                        </p>
-                    </button>
-                ))}
-            </div>
-        </PanelShell>
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| PANNEAU DE BASE MAP
-|--------------------------------------------------------------------------
-*/
-
-function BaseMapPanel({
-                          baseMap,
-                          setBaseMap,
-                          onClose,
-                      }) {
-    return (
-        <PanelShell
-            title="Fond cartographique"
-            subtitle="Choisissez la représentation de base"
-            icon={MapIcon}
-            onClose={onClose}
-            width="w-80"
-        >
-            <div className="grid grid-cols-2 gap-2">
-                {baseMaps.map((map) => {
-                    const Icon = map.icon;
-                    const selected = baseMap === map.label;
-
-                    return (
-                        <button
-                            key={map.id}
-                            onClick={() => setBaseMap(map.label)}
-                            className={`rounded-xl border p-4 ${
-                                selected
-                                    ? "border-green-500 bg-green-50"
-                                    : "border-slate-200"
-                            }`}
-                        >
-                            <Icon
-                                size={20}
-                                className="mx-auto"
-                            />
-
-                            <p className="mt-2 text-xs font-semibold">
-                                {map.label}
-                            </p>
-                        </button>
-                    );
-                })}
-            </div>
-        </PanelShell>
-    );
-}
-
-
-
-/*
-|--------------------------------------------------------------------------
-| RÉSULTATS API ET CONSOLE TECHNIQUE
-|--------------------------------------------------------------------------
-*/
+/* =========================================================
+   2. TYPES
+   ========================================================= */
 
 type ApiLogEntry = {
     id: string;
     timestamp: string;
-    method: string;
+    method: HttpMethod;
     endpoint: string;
     status: number | "ERROR";
     durationMs: number;
     message: string;
 };
 
-function ApiResultsPanel({
-                             open,
-                             loading,
-                             error,
-                             data,
-                             logs,
-                             consoleOpen,
-                             onToggleConsole,
-                             onClose,
-                             onRefresh,
-                         }: {
-    open: boolean;
-    loading: boolean;
-    error: string | null;
+type ApiResult = {
+    endpoint: string;
+    method: HttpMethod;
+    status: number;
+    durationMs: number;
+    timestamp: string;
     data: unknown;
-    logs: ApiLogEntry[];
-    consoleOpen: boolean;
-    onToggleConsole: () => void;
-    onClose: () => void;
-    onRefresh: () => void;
+};
+
+/* =========================================================
+   3. FONCTIONS UTILITAIRES
+   ========================================================= */
+
+function formatDate(value: string): string {
+    return new Date(value).toLocaleString("fr-FR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+    });
+}
+
+function getItemCount(data: unknown): number | null {
+    if (Array.isArray(data)) {
+        return data.length;
+    }
+
+    if (data && typeof data === "object") {
+        const record = data as Record<string, unknown>;
+
+        for (const key of ["items", "results", "data", "zones", "stations"]) {
+            if (Array.isArray(record[key])) {
+                return (record[key] as unknown[]).length;
+            }
+        }
+    }
+
+    return null;
+}
+
+function getErrorMessage(error: unknown): string {
+    if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data;
+
+        if (typeof responseData === "string" && responseData.trim()) {
+            return responseData;
+        }
+
+        if (responseData && typeof responseData === "object") {
+            const record = responseData as Record<string, unknown>;
+
+            if (typeof record.detail === "string") {
+                return record.detail;
+            }
+
+            if (Array.isArray(record.detail)) {
+                return JSON.stringify(record.detail, null, 2);
+            }
+
+            return JSON.stringify(responseData, null, 2);
+        }
+
+        if (error.code === "ECONNABORTED") {
+            return "La requête a dépassé le délai d'attente autorisé.";
+        }
+
+        if (!error.response) {
+            return (
+                "Impossible de joindre l'API. Vérifie que le serveur FastAPI " +
+                "est démarré et que l'URL de l'API est correcte."
+            );
+        }
+
+        return error.message;
+    }
+
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    return "Une erreur inconnue est survenue.";
+}
+
+/* =========================================================
+   4. COMPOSANTS RÉUTILISABLES
+   ========================================================= */
+
+function StatCard({
+                      label,
+                      value,
+                      description,
+                      icon: Icon,
+                  }: {
+    label: string;
+    value: string | number;
+    description: string;
+    icon: typeof Activity;
 }) {
-    if (!open) return null;
+    return (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <p className="text-sm font-medium text-slate-500">{label}</p>
+                    <p className="mt-3 text-2xl font-bold tracking-tight text-slate-900">
+                        {value}
+                    </p>
+                </div>
+
+                <div className="rounded-xl bg-emerald-50 p-3 text-emerald-700">
+                    <Icon size={21} />
+                </div>
+            </div>
+
+            <p className="mt-3 text-xs text-slate-500">{description}</p>
+        </div>
+    );
+}
+
+function SectionTitle({
+                          title,
+                          description,
+                          icon: Icon,
+                      }: {
+    title: string;
+    description: string;
+    icon: typeof Database;
+}) {
+    return (
+        <div className="mb-5 flex items-start gap-3">
+            <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-700">
+                <Icon size={21} />
+            </div>
+
+            <div>
+                <h2 className="text-base font-bold text-slate-900">{title}</h2>
+                <p className="mt-1 text-sm text-slate-500">{description}</p>
+            </div>
+        </div>
+    );
+}
+
+/* =========================================================
+   5. COMPOSANT PRINCIPAL
+   ========================================================= */
+
+export default function Dashboard() {
+    const [selectedEndpoint, setSelectedEndpoint] =
+        useState("/api/v1/zones");
+
+    const [requestBody, setRequestBody] = useState(
+        JSON.stringify({}, null, 2)
+    );
+
+    const [result, setResult] = useState<ApiResult | null>(null);
+    const [logs, setLogs] = useState<ApiLogEntry[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [consoleOpen, setConsoleOpen] = useState(true);
+    const [activeTab, setActiveTab] = useState<"result" | "json">("result");
+
+    const selectedConfig = useMemo(
+        () =>
+            API_ENDPOINTS.find(
+                (endpoint) => endpoint.path === selectedEndpoint
+            ) ?? API_ENDPOINTS[0],
+        [selectedEndpoint]
+    );
+
+    const successfulRequests = logs.filter(
+        (log) =>
+            typeof log.status === "number" &&
+            log.status >= 200 &&
+            log.status < 300
+    ).length;
+
+    const failedRequests = logs.length - successfulRequests;
+
+    const latestDuration = logs.length ? logs[0].durationMs : 0;
+
+    const resultCount = result ? getItemCount(result.data) : null;
+
+    /* ---------------------------------------------------------
+       Exécuter une requête API
+       --------------------------------------------------------- */
+
+    async function handleQueryApi() {
+        const config = API_ENDPOINTS.find(
+            (endpoint) => endpoint.path === selectedEndpoint
+        );
+
+        if (!config) {
+            setError("Endpoint API non reconnu.");
+            return;
+        }
+
+        let body: unknown;
+
+        if (config.method === "POST") {
+            try {
+                body = JSON.parse(requestBody);
+            } catch {
+                setError(
+                    "Le corps de la requête n'est pas un JSON valide. " +
+                    "Vérifie les accolades, les virgules et les guillemets."
+                );
+                return;
+            }
+        }
+
+        const startedAt = performance.now();
+        const timestamp = new Date().toISOString();
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            const response = await axios.request({
+                baseURL: API_BASE_URL,
+                url: config.path,
+                method: config.method,
+                ...(config.method === "POST" ? { data: body } : {}),
+                headers: {
+                    Accept: "application/json",
+                    ...(config.method === "POST"
+                        ? { "Content-Type": "application/json" }
+                        : {}),
+                },
+                timeout: 30000,
+            });
+
+            const durationMs = Math.round(performance.now() - startedAt);
+
+            setResult({
+                endpoint: config.path,
+                method: config.method,
+                status: response.status,
+                durationMs,
+                timestamp,
+                data: response.data,
+            });
+
+            setActiveTab("result");
+
+            setLogs((current) =>
+                [
+                    {
+                        id: `${Date.now()}-${Math.random()}`,
+                        timestamp,
+                        method: config.method,
+                        endpoint: config.path,
+                        status: response.status,
+                        durationMs,
+                        message: "Requête exécutée avec succès.",
+                    },
+                    ...current,
+                ].slice(0, 100)
+            );
+        } catch (requestError: unknown) {
+            const durationMs = Math.round(performance.now() - startedAt);
+            const message = getErrorMessage(requestError);
+
+            const status = axios.isAxiosError(requestError)
+                ? requestError.response?.status ?? "ERROR"
+                : "ERROR";
+
+            setError(message);
+
+            setLogs((current) =>
+                [
+                    {
+                        id: `${Date.now()}-${Math.random()}`,
+                        timestamp,
+                        method: config.method,
+                        endpoint: config.path,
+                        status,
+                        durationMs,
+                        message,
+                    },
+                    ...current,
+                ].slice(0, 100)
+            );
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function handleEndpointChange(path: string) {
+        setSelectedEndpoint(path);
+        setError(null);
+    }
+
+    function clearLogs() {
+        setLogs([]);
+    }
+
+    async function copyResult() {
+        if (!result) return;
+
+        try {
+            await navigator.clipboard.writeText(
+                JSON.stringify(result.data, null, 2)
+            );
+        } catch {
+            setError(
+                "Impossible de copier automatiquement le résultat. " +
+                "Sélectionne le JSON et copie-le manuellement."
+            );
+        }
+    }
+
+    /* ---------------------------------------------------------
+       Interface
+       --------------------------------------------------------- */
 
     return (
-        <section
-            aria-label="Résultats de l'API"
-            className="absolute bottom-[5.5rem] left-1/2 z-40 flex max-h-[48vh] w-[min(48rem,calc(100vw-2rem))] -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-white/70 bg-white/95 shadow-2xl backdrop-blur-xl"
-        >
-            <header className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-                <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-700">
-                        <Database size={18} />
+        <div className="min-h-screen bg-slate-50 text-slate-800">
+            {/* En-tête */}
+            <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+                <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+                    <div className="flex items-center gap-3">
+                        <div className="rounded-xl bg-emerald-700 p-2.5 text-white">
+                            <Layers3 size={23} />
+                        </div>
+
+                        <div>
+                            <h1 className="text-lg font-extrabold tracking-tight text-slate-900">
+                                Assaman-Suuf
+                            </h1>
+                            <p className="text-xs text-slate-500">
+                                Plateforme agroclimatique · Dashboard API
+                            </p>
+                        </div>
                     </div>
-                    <div className="min-w-0">
-                        <h2 className="text-sm font-bold text-slate-900">Résultats de l'interrogation API</h2>
-                        <p className="text-[10px] text-slate-500">Données retournées par le backend Assaman-Suuf</p>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2">
+              <span
+                  className={`h-2 w-2 rounded-full ${
+                      loading ? "animate-pulse bg-amber-500" : "bg-emerald-500"
+                  }`}
+              />
+                            <span className="text-xs font-semibold text-slate-600">
+                {loading ? "Requête en cours" : "Client API prêt"}
+              </span>
+                        </div>
+
+                        <a
+                            href={`${API_BASE_URL}/docs`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-800"
+                        >
+                            Documentation Swagger
+                            <ExternalLink size={14} />
+                        </a>
                     </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5">
-                    <button type="button" onClick={onRefresh} disabled={loading} title="Relancer la requête" className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 disabled:opacity-50">
-                        <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
-                    </button>
-                    <button type="button" onClick={onToggleConsole} className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[10px] font-semibold ${consoleOpen ? "border-green-200 bg-green-50 text-green-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
-                        <Code2 size={14} /> Console ({logs.length})
-                    </button>
-                    <button type="button" onClick={onClose} aria-label="Fermer les résultats" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800">
-                        <X size={16} />
-                    </button>
                 </div>
             </header>
 
-            <div className="min-h-0 overflow-auto p-4">
-                {loading ? (
-                    <div className="flex items-center gap-2 py-6 text-sm text-slate-500"><RefreshCw size={16} className="animate-spin" /> Interrogation du service en cours…</div>
-                ) : error ? (
-                    <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-                        <p className="font-bold">La requête a échoué</p>
-                        <p className="mt-1 break-words">{error}</p>
-                    </div>
-                ) : data == null ? (
-                    <div className="py-6 text-center text-xs text-slate-500">Aucun résultat pour le moment. Utilise « Interroger l'API » pour charger les zones.</div>
-                ) : (
-                    <>
-                        <div className="mb-3 flex items-center justify-between gap-2">
-                            <p className="text-xs font-semibold text-slate-700">Réponse JSON</p>
-                            <span className="rounded-full bg-green-50 px-2 py-1 text-[9px] font-bold text-green-700">Réponse reçue</span>
-                        </div>
-                        <pre className="max-h-52 overflow-auto rounded-xl bg-slate-950 p-3 text-[10px] leading-5 text-emerald-100">{JSON.stringify(data, null, 2)}</pre>
-                    </>
-                )}
+            <main className="mx-auto max-w-[1600px] space-y-7 px-4 py-6 sm:px-6 lg:px-8">
+                {/* Introduction */}
+                <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-800 p-6 text-white shadow-sm sm:p-8">
+                    <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
+                        <div className="max-w-2xl">
+                            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium text-emerald-50">
+                                <CloudRain size={14} />
+                                Agriculture · Climat · Géographie
+                            </div>
 
-                {consoleOpen && (
-                    <section className="mt-4 border-t border-slate-200 pt-4">
-                        <div className="mb-2 flex items-center gap-2"><Code2 size={15} className="text-slate-500" /><h3 className="text-xs font-bold text-slate-800">Console technique</h3></div>
-                        {logs.length === 0 ? (
-                            <p className="text-[10px] text-slate-500">Aucune requête enregistrée.</p>
-                        ) : (
-                            <div className="space-y-2">
-                                {logs.map((log) => (
-                                    <div key={log.id} className="rounded-xl border border-slate-200 p-3">
-                                        <div className="flex flex-wrap items-center gap-2 text-[10px]">
-                                            <span className="rounded bg-slate-100 px-2 py-1 font-bold">{log.method}</span>
-                                            <code className="break-all text-slate-700">{log.endpoint}</code>
-                                            <span className={`ml-auto rounded-full px-2 py-1 font-bold ${log.status === "ERROR" || (typeof log.status === "number" && log.status >= 400) ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>{log.status}</span>
+                            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                                Centre de supervision des données
+                            </h2>
+
+                            <p className="mt-3 max-w-xl text-sm leading-6 text-emerald-50/85">
+                                Interroge les services FastAPI, consulte les réponses JSON
+                                et surveille les performances des requêtes de la plateforme
+                                agroclimatique.
+                            </p>
+                        </div>
+
+                        <div className="min-w-0 rounded-xl border border-white/15 bg-black/10 p-4 lg:min-w-72">
+                            <p className="text-xs font-medium text-emerald-100/80">
+                                URL de base configurée
+                            </p>
+                            <p className="mt-2 break-all font-mono text-sm text-white">
+                                {API_BASE_URL || "Même origine que le frontend"}
+                            </p>
+                            <div className="mt-3 flex items-center gap-2 text-xs text-emerald-100">
+                                <Wifi size={14} />
+                                <span>Requêtes HTTP via Axios</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Statistiques */}
+                <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        label="Endpoints disponibles"
+                        value={API_ENDPOINTS.length}
+                        description="Services configurés dans ce dashboard."
+                        icon={Server}
+                    />
+
+                    <StatCard
+                        label="Requêtes réussies"
+                        value={successfulRequests}
+                        description="Réponses HTTP comprises entre 200 et 299."
+                        icon={CheckCircle2}
+                    />
+
+                    <StatCard
+                        label="Requêtes en erreur"
+                        value={failedRequests}
+                        description="Échecs HTTP ou problèmes de connexion."
+                        icon={AlertCircle}
+                    />
+
+                    <StatCard
+                        label="Dernier temps de réponse"
+                        value={`${latestDuration} ms`}
+                        description="Durée de la dernière tentative enregistrée."
+                        icon={Clock3}
+                    />
+                </section>
+
+                {/* Zone principale */}
+                <section className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)]">
+                    {/* Panneau de requête */}
+                    <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                        <SectionTitle
+                            title="Explorateur API"
+                            description="Choisis un endpoint et exécute une requête."
+                            icon={Database}
+                        />
+
+                        <div className="space-y-5">
+                            <div>
+                                <label
+                                    htmlFor="endpoint"
+                                    className="mb-2 block text-sm font-semibold text-slate-700"
+                                >
+                                    Service à interroger
+                                </label>
+
+                                <div className="relative">
+                                    <select
+                                        id="endpoint"
+                                        value={selectedEndpoint}
+                                        onChange={(event) =>
+                                            handleEndpointChange(event.target.value)
+                                        }
+                                        className="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3 pr-10 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                                    >
+                                        {API_ENDPOINTS.map((endpoint) => (
+                                            <option key={endpoint.path} value={endpoint.path}>
+                                                {endpoint.method} · {endpoint.label}
+                                            </option>
+                                        ))}
+                                    </select>
+
+                                    <ChevronDown
+                                        size={17}
+                                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+                                    />
+                                </div>
+
+                                <p className="mt-2 text-xs leading-5 text-slate-500">
+                                    {selectedConfig.description}
+                                </p>
+                            </div>
+
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                      className={`rounded-md px-2 py-1 text-[10px] font-extrabold ${
+                          selectedConfig.method === "GET"
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-violet-100 text-violet-700"
+                      }`}
+                  >
+                    {selectedConfig.method}
+                  </span>
+
+                                    <span className="rounded-md bg-slate-200 px-2 py-1 text-[10px] font-semibold text-slate-600">
+                    {selectedConfig.category}
+                  </span>
+                                </div>
+
+                                <p className="mt-3 break-all font-mono text-sm font-semibold text-slate-800">
+                                    {selectedConfig.path}
+                                </p>
+                            </div>
+
+                            {selectedConfig.method === "POST" && (
+                                <div>
+                                    <label
+                                        htmlFor="requestBody"
+                                        className="mb-2 block text-sm font-semibold text-slate-700"
+                                    >
+                                        Corps de la requête JSON
+                                    </label>
+
+                                    <textarea
+                                        id="requestBody"
+                                        value={requestBody}
+                                        onChange={(event) => setRequestBody(event.target.value)}
+                                        rows={9}
+                                        spellCheck={false}
+                                        className="w-full resize-y rounded-xl border border-slate-700 bg-slate-950 p-4 font-mono text-xs leading-6 text-emerald-100 outline-none focus:border-emerald-500"
+                                        placeholder={'{\n  "parametre": "valeur"\n}'}
+                                    />
+
+                                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                                        Remplace le contenu par les champs réellement attendus
+                                        par le schéma Pydantic de ton endpoint.
+                                    </p>
+                                </div>
+                            )}
+
+                            <button
+                                type="button"
+                                onClick={handleQueryApi}
+                                disabled={loading}
+                                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {loading ? (
+                                    <>
+                                        <LoaderCircle size={18} className="animate-spin" />
+                                        Exécution en cours…
+                                    </>
+                                ) : (
+                                    <>
+                                        <Play size={17} />
+                                        Interroger cet endpoint
+                                    </>
+                                )}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setResult(null);
+                                    setError(null);
+                                }}
+                                className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                            >
+                                <Trash2 size={15} />
+                                Effacer le résultat affiché
+                            </button>
+
+                            <div className="rounded-xl border border-slate-200 p-4">
+                                <div className="flex items-center gap-2">
+                                    <ShieldCheck size={18} className="text-emerald-700" />
+                                    <p className="text-sm font-bold text-slate-800">
+                                        Configuration de connexion
+                                    </p>
+                                </div>
+
+                                <p className="mt-2 break-all font-mono text-xs text-slate-500">
+                                    {API_BASE_URL || "URL relative — configuration Vite requise"}
+                                </p>
+
+                                <p className="mt-2 text-xs leading-5 text-slate-500">
+                                    Si le frontend et l'API utilisent des ports différents,
+                                    configure VITE_API_BASE_URL ou un proxy Vite.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Panneau de résultat */}
+                    <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div className="border-b border-slate-200 p-5 sm:p-6">
+                            <SectionTitle
+                                title="Résultat de la requête"
+                                description="Réponse réelle renvoyée par le serveur."
+                                icon={Code2}
+                            />
+
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab("result")}
+                                    className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
+                                        activeTab === "result"
+                                            ? "bg-emerald-700 text-white"
+                                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                    }`}
+                                >
+                                    Vue synthétique
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab("json")}
+                                    className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
+                                        activeTab === "json"
+                                            ? "bg-emerald-700 text-white"
+                                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                    }`}
+                                >
+                                    Réponse JSON
+                                </button>
+
+                                {result && (
+                                    <button
+                                        type="button"
+                                        onClick={copyResult}
+                                        className="ml-auto rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                                    >
+                                        Copier JSON
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="p-5 sm:p-6">
+                            {error && (
+                                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4">
+                                    <div className="flex items-start gap-2">
+                                        <XCircle
+                                            size={18}
+                                            className="mt-0.5 shrink-0 text-red-600"
+                                        />
+
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold text-red-800">
+                                                Échec de la requête
+                                            </p>
+                                            <pre className="mt-2 whitespace-pre-wrap break-words font-sans text-xs leading-5 text-red-700">
+                        {error}
+                      </pre>
                                         </div>
-                                        <p className="mt-2 break-words text-[10px] text-slate-600">{log.message}</p>
-                                        <p className="mt-1 text-[9px] text-slate-400">{new Date(log.timestamp).toLocaleString()} · {log.durationMs} ms</p>
                                     </div>
-                                ))}
+                                </div>
+                            )}
+
+                            {loading && (
+                                <div className="flex min-h-64 flex-col items-center justify-center text-center">
+                                    <LoaderCircle
+                                        size={34}
+                                        className="animate-spin text-emerald-700"
+                                    />
+                                    <p className="mt-4 text-sm font-bold text-slate-800">
+                                        Communication avec le serveur
+                                    </p>
+                                    <p className="mt-2 text-xs text-slate-500">
+                                        {selectedConfig.method} {selectedConfig.path}
+                                    </p>
+                                </div>
+                            )}
+
+                            {!loading && !result && !error && (
+                                <div className="flex min-h-72 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 text-center">
+                                    <div className="rounded-2xl bg-white p-4 text-slate-400 shadow-sm">
+                                        <Terminal size={30} />
+                                    </div>
+
+                                    <h3 className="mt-4 text-sm font-bold text-slate-800">
+                                        Aucune réponse pour le moment
+                                    </h3>
+
+                                    <p className="mt-2 max-w-xs text-xs leading-5 text-slate-500">
+                                        Sélectionne un endpoint, puis lance une requête pour
+                                        afficher les données retournées par FastAPI.
+                                    </p>
+                                </div>
+                            )}
+
+                            {!loading && result && activeTab === "result" && (
+                                <div className="space-y-4">
+                                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle2
+                                                size={19}
+                                                className="text-emerald-700"
+                                            />
+                                            <p className="text-sm font-bold text-emerald-900">
+                                                Réponse reçue avec succès
+                                            </p>
+                                        </div>
+
+                                        <p className="mt-2 break-all font-mono text-xs text-emerald-800">
+                                            {result.method} {result.endpoint}
+                                        </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                        <div className="rounded-xl border border-slate-200 p-4">
+                                            <p className="text-xs text-slate-500">Statut HTTP</p>
+                                            <p className="mt-2 text-xl font-bold text-emerald-700">
+                                                {result.status}
+                                            </p>
+                                        </div>
+
+                                        <div className="rounded-xl border border-slate-200 p-4">
+                                            <p className="text-xs text-slate-500">Durée</p>
+                                            <p className="mt-2 text-xl font-bold text-slate-900">
+                                                {result.durationMs} ms
+                                            </p>
+                                        </div>
+
+                                        <div className="rounded-xl border border-slate-200 p-4">
+                                            <p className="text-xs text-slate-500">
+                                                Éléments détectés
+                                            </p>
+                                            <p className="mt-2 text-xl font-bold text-slate-900">
+                                                {resultCount ?? "—"}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <p className="mb-2 text-sm font-bold text-slate-800">
+                                            Structure de la réponse
+                                        </p>
+
+                                        <div className="max-h-[440px] overflow-auto rounded-xl border border-slate-200 bg-slate-950 p-4">
+                      <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-6 text-emerald-100">
+                        {JSON.stringify(result.data, null, 2)}
+                      </pre>
+                                        </div>
+                                    </div>
+
+                                    <p className="text-xs text-slate-400">
+                                        Requête effectuée le {formatDate(result.timestamp)}
+                                    </p>
+                                </div>
+                            )}
+
+                            {!loading && result && activeTab === "json" && (
+                                <div className="max-h-[600px] overflow-auto rounded-xl border border-slate-700 bg-slate-950 p-4">
+                  <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-6 text-emerald-100">
+                    {JSON.stringify(result.data, null, 2)}
+                  </pre>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </section>
+
+                {/* Historique et console */}
+                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-5 sm:p-6">
+                        <SectionTitle
+                            title="Console et historique API"
+                            description="Journal des requêtes, statuts HTTP et durées."
+                            icon={Activity}
+                        />
+
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setConsoleOpen((open) => !open)}
+                                className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                            >
+                                <Terminal size={15} />
+                                {consoleOpen ? "Masquer" : "Afficher"}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={clearLogs}
+                                disabled={logs.length === 0}
+                                className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                            >
+                                <Trash2 size={14} />
+                                Vider l'historique
+                            </button>
+                        </div>
+                    </div>
+
+                    {consoleOpen && (
+                        <div>
+                            <div className="grid grid-cols-1 gap-3 border-b border-slate-200 bg-slate-50 p-5 sm:grid-cols-3">
+                                <div className="rounded-xl bg-white p-3">
+                                    <p className="text-xs text-slate-500">Total des requêtes</p>
+                                    <p className="mt-1 text-lg font-bold text-slate-900">
+                                        {logs.length}
+                                    </p>
+                                </div>
+
+                                <div className="rounded-xl bg-white p-3">
+                                    <p className="text-xs text-slate-500">Succès</p>
+                                    <p className="mt-1 text-lg font-bold text-emerald-700">
+                                        {successfulRequests}
+                                    </p>
+                                </div>
+
+                                <div className="rounded-xl bg-white p-3">
+                                    <p className="text-xs text-slate-500">Échecs</p>
+                                    <p className="mt-1 text-lg font-bold text-red-600">
+                                        {failedRequests}
+                                    </p>
+                                </div>
                             </div>
-                        )}
-                    </section>
-                )}
-            </div>
-        </section>
-    );
-}
 
-/*
-|--------------------------------------------------------------------------
-| DASHBOARD DES DONNÉES API (SOUS LA CARTE)
-|--------------------------------------------------------------------------
-| Ce panneau se trouve dans le flux normal de la page : l'opérateur
-| descend sous la carte pour consulter les données renvoyées par l'API.
-| Il n'invente pas de statistiques métier : il présente la structure réelle
-| de la réponse jusqu'à ce que les schémas de chaque endpoint soient définis.
-|--------------------------------------------------------------------------
-*/
+                            <div className="overflow-x-auto">
+                                <table className="w-full min-w-[760px] text-left text-xs">
+                                    <thead className="border-b border-slate-200 bg-white text-slate-500">
+                                    <tr>
+                                        <th className="px-5 py-4 font-semibold">Heure</th>
+                                        <th className="px-5 py-4 font-semibold">Méthode</th>
+                                        <th className="px-5 py-4 font-semibold">Endpoint</th>
+                                        <th className="px-5 py-4 font-semibold">Statut</th>
+                                        <th className="px-5 py-4 font-semibold">Durée</th>
+                                        <th className="px-5 py-4 font-semibold">Message</th>
+                                    </tr>
+                                    </thead>
 
-function DashboardMapsServices({
-                                   loading,
-                                   error,
-                                   data,
-                                   logs,
-                                   onRefresh,
-                               }: {
-    loading: boolean;
-    error: string | null;
-    data: unknown;
-    logs: ApiLogEntry[];
-    onRefresh: () => void;
-}) {
-    const recordCount = Array.isArray(data)
-        ? data.length
-        : data && typeof data === "object"
-            ? Object.keys(data as Record<string, unknown>).length
-            : data == null
-                ? 0
-                : 1;
+                                    <tbody className="divide-y divide-slate-100">
+                                    {logs.map((log) => (
+                                        <tr key={log.id} className="hover:bg-slate-50">
+                                            <td className="whitespace-nowrap px-5 py-4 text-slate-500">
+                                                {formatDate(log.timestamp)}
+                                            </td>
 
-    const latestLog = logs[0];
-    const objectRows: Record<string, unknown>[] = Array.isArray(data)
-        ? data.filter((item): item is Record<string, unknown> =>
-            item !== null && typeof item === "object" && !Array.isArray(item)
-        )
-        : data && typeof data === "object"
-            ? [data as Record<string, unknown>]
-            : [];
+                                            <td className="px-5 py-4">
+                          <span
+                              className={`rounded-md px-2 py-1 font-bold ${
+                                  log.method === "GET"
+                                      ? "bg-blue-100 text-blue-700"
+                                      : "bg-violet-100 text-violet-700"
+                              }`}
+                          >
+                            {log.method}
+                          </span>
+                                            </td>
 
-    const columns = Array.from(
-        new Set(objectRows.flatMap((row) => Object.keys(row)))
-    ).slice(0, 6);
+                                            <td className="max-w-64 break-all px-5 py-4 font-mono text-slate-700">
+                                                {log.endpoint}
+                                            </td>
 
-    const displayValue = (value: unknown) => {
-        if (value == null) return "—";
-        if (typeof value === "object") return JSON.stringify(value);
-        return String(value);
-    };
+                                            <td className="px-5 py-4">
+                          <span
+                              className={`rounded-md px-2 py-1 font-bold ${
+                                  typeof log.status === "number" &&
+                                  log.status >= 200 &&
+                                  log.status < 300
+                                      ? "bg-emerald-100 text-emerald-700"
+                                      : "bg-red-100 text-red-700"
+                              }`}
+                          >
+                            {log.status}
+                          </span>
+                                            </td>
 
-    return (
-        <section
-            id="dashboardMapsServices"
-            aria-labelledby="dashboard-maps-services-title"
-            className="relative z-10 border-t border-slate-200 bg-slate-50 px-4 py-8 sm:px-6 lg:px-10"
-        >
-            <div className="mx-auto max-w-screen-2xl">
-                <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
-                            Assaman-Suuf · Centre de décision
-                        </p>
-                        <h2 id="dashboard-maps-services-title" className="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">
-                            Tableau de bord agroclimatique
-                        </h2>
-                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                            Consulte les données retournées par les services API pour éclairer les décisions de l'opérateur. Les indicateurs métier détaillés seront présentés selon le schéma réel de chaque endpoint.
-                        </p>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={onRefresh}
-                        disabled={loading}
-                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-green-300 hover:text-green-800 disabled:cursor-wait disabled:opacity-60"
-                    >
-                        <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-                        Actualiser les données
-                    </button>
-                </div>
+                                            <td className="whitespace-nowrap px-5 py-4 text-slate-600">
+                                                {log.durationMs} ms
+                                            </td>
 
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <div className="flex items-center justify-between gap-3">
-                            <span className="text-sm font-medium text-slate-500">État du service</span>
-                            <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${error ? "bg-red-50 text-red-600" : loading ? "bg-amber-50 text-amber-600" : data != null ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>
-                                {error ? <AlertTriangle size={19} /> : loading ? <RefreshCw size={19} className="animate-spin" /> : <Activity size={19} />}
-                            </span>
-                        </div>
-                        <p className="mt-3 text-lg font-bold text-slate-900">{error ? "Erreur" : loading ? "Chargement" : data != null ? "Données reçues" : "En attente"}</p>
-                        <p className="mt-1 text-xs text-slate-500">Statut de la dernière interrogation</p>
-                    </article>
+                                            <td className="max-w-64 whitespace-normal break-words px-5 py-4 text-slate-500">
+                                                {log.message}
+                                            </td>
+                                        </tr>
+                                    ))}
 
-                    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <div className="flex items-center justify-between gap-3">
-                            <span className="text-sm font-medium text-slate-500">Éléments reçus</span>
-                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700"><Database size={19} /></span>
-                        </div>
-                        <p className="mt-3 text-2xl font-bold tabular-nums text-slate-900">{recordCount.toLocaleString()}</p>
-                        <p className="mt-1 text-xs text-slate-500">Éléments au premier niveau de la réponse</p>
-                    </article>
-
-                    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <div className="flex items-center justify-between gap-3">
-                            <span className="text-sm font-medium text-slate-500">Requêtes enregistrées</span>
-                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-700"><Code2 size={19} /></span>
-                        </div>
-                        <p className="mt-3 text-2xl font-bold tabular-nums text-slate-900">{logs.length}</p>
-                        <p className="mt-1 text-xs text-slate-500">Historique local de cette session</p>
-                    </article>
-
-                    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <div className="flex items-center justify-between gap-3">
-                            <span className="text-sm font-medium text-slate-500">Dernière réponse</span>
-                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-orange-700"><RefreshCw size={19} /></span>
-                        </div>
-                        <p className="mt-3 text-lg font-bold text-slate-900">{latestLog ? `${latestLog.durationMs} ms` : "—"}</p>
-                        <p className="mt-1 truncate text-xs text-slate-500" title={latestLog?.endpoint ?? "Aucune requête"}>{latestLog?.endpoint ?? "Aucune requête exécutée"}</p>
-                    </article>
-                </div>
-
-                {error && (
-                    <div role="alert" className="mt-5 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-                        <AlertTriangle size={18} className="mt-0.5 shrink-0" />
-                        <div><p className="font-bold">Impossible de récupérer les données</p><p className="mt-1 break-words">{error}</p></div>
-                    </div>
-                )}
-
-                <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(20rem,1fr)]">
-                    <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                        <header className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
-                            <div><h3 className="text-sm font-bold text-slate-900">Données pour l'analyse</h3><p className="mt-1 text-xs text-slate-500">Aperçu tabulaire lorsque la réponse contient des objets</p></div>
-                            <BarChart3 size={19} className="shrink-0 text-green-700" />
-                        </header>
-                        {loading ? (
-                            <div className="flex items-center gap-3 p-8 text-sm text-slate-500"><RefreshCw size={17} className="animate-spin" /> Chargement des données de l'API…</div>
-                        ) : objectRows.length > 0 && columns.length > 0 ? (
-                            <div className="max-w-full overflow-auto">
-                                <table className="w-full border-collapse text-left text-xs">
-                                    <thead className="bg-slate-50 text-slate-600"><tr>{columns.map((column) => <th key={column} className="whitespace-nowrap border-b border-slate-200 px-4 py-3 font-bold">{column}</th>)}</tr></thead>
-                                    <tbody>{objectRows.slice(0, 50).map((row, index) => <tr key={String(row.id ?? row.code ?? index)} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">{columns.map((column) => <td key={column} className="max-w-64 px-4 py-3 text-slate-700"><span className="block truncate" title={displayValue(row[column])}>{displayValue(row[column])}</span></td>)}</tr>)}</tbody>
+                                    {logs.length === 0 && (
+                                        <tr>
+                                            <td colSpan={6} className="px-5 py-12 text-center">
+                                                <Activity
+                                                    size={25}
+                                                    className="mx-auto text-slate-300"
+                                                />
+                                                <p className="mt-3 text-sm font-semibold text-slate-600">
+                                                    Aucune requête enregistrée
+                                                </p>
+                                                <p className="mt-1 text-xs text-slate-400">
+                                                    L'historique sera alimenté à chaque tentative.
+                                                </p>
+                                            </td>
+                                        </tr>
+                                    )}
+                                    </tbody>
                                 </table>
-                                {objectRows.length > 50 && <p className="px-4 py-3 text-xs text-slate-500">Aperçu limité aux 50 premiers éléments. La réponse complète reste consultable ci-contre.</p>}
                             </div>
-                        ) : data != null ? (
-                            <div className="p-5"><p className="mb-3 text-xs text-slate-500">Structure de la réponse API</p><pre className="max-h-96 overflow-auto rounded-xl bg-slate-950 p-4 text-xs leading-5 text-emerald-100">{JSON.stringify(data, null, 2)}</pre></div>
-                        ) : (
-                            <div className="p-8 text-center"><Database size={26} className="mx-auto text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-700">Aucune donnée chargée</p><p className="mt-1 text-xs text-slate-500">Utilise l'icône de base de données sur la carte pour interroger le service.</p></div>
-                        )}
-                    </section>
-
-                    <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                        <header className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4"><div><h3 className="text-sm font-bold text-slate-900">État de l'interrogation</h3><p className="mt-1 text-xs text-slate-500">Informations utiles pour interpréter la réponse</p></div><Activity size={19} className="text-blue-700" /></header>
-                        <div className="space-y-4 p-5">
-                            <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Endpoint</p><p className="mt-1 break-all font-mono text-xs text-slate-700">{latestLog?.endpoint ?? `${import.meta.env.VITE_API_BASE_URL ?? ""}/api/v1/zones`}</p></div>
-                            <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Statut HTTP</p><p className="mt-1"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${latestLog?.status === "ERROR" || (typeof latestLog?.status === "number" && latestLog.status >= 400) ? "bg-red-50 text-red-700" : latestLog ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-600"}`}>{latestLog?.status ?? "Non exécuté"}</span></p></div>
-                            <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Horodatage</p><p className="mt-1 text-xs text-slate-700">{latestLog ? new Date(latestLog.timestamp).toLocaleString() : "—"}</p></div>
-                            <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Message</p><p className="mt-1 break-words text-xs leading-5 text-slate-600">{latestLog?.message ?? "Lance une interrogation pour afficher le diagnostic."}</p></div>
-                            <button type="button" onClick={onRefresh} disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-green-800 disabled:opacity-60"><RefreshCw size={16} className={loading ? "animate-spin" : ""} />Interroger à nouveau</button>
                         </div>
-                    </section>
-                </div>
-            </div>
-        </section>
-    );
-}
+                    )}
+                </section>
 
-/*
-|--------------------------------------------------------------------------
-| DASHBOARD PRINCIPAL
-|--------------------------------------------------------------------------
-*/
-
-export default function Dashboard() {
-    const [activeView, setActiveView] = useState("map");
-
-    const [selectedZone, setSelectedZone] = useState(null);
-
-    const [zoom, setZoom] = useState(6);
-
-    const [baseMap, setBaseMap] = useState("Clair");
-
-    const [filters, setFilters] =
-        useState(defaultFilters);
-
-    const [activeLayers, setActiveLayers] = useState(
-        initialActiveLayers
-    );
-
-    const [layerSettings, setLayerSettings] =
-        useState(initialLayerSettings);
-
-    const [activeLayerOrder, setActiveLayerOrder] =
-        useState(
-            Object.keys(initialActiveLayers).filter(
-                (id) => initialActiveLayers[id]
-            )
-        );
-
-    const activeLayerIds = activeLayerOrder.filter(
-        (id) => activeLayers[id]
-    );
-
-    const [resultsOpen, setResultsOpen] = useState(false);
-    const [apiConsoleOpen, setApiConsoleOpen] = useState(false);
-    const [apiLoading, setApiLoading] = useState(false);
-    const [apiError, setApiError] = useState<string | null>(null);
-    const [apiResults, setApiResults] = useState<unknown>(null);
-    const [apiLogs, setApiLogs] = useState<ApiLogEntry[]>([]);
-
-    const handleQueryZones = async () => {
-        const endpoint = `${import.meta.env.VITE_API_BASE_URL ?? ""}/api/v1/zones`;
-        const startedAt = performance.now();
-        setApiLoading(true);
-        setApiError(null);
-        setResultsOpen(true);
-        setApiConsoleOpen(true);
-
-        try {
-            const response = await fetch(endpoint, {
-                method: "GET",
-                headers: { Accept: "application/json" },
-            });
-            const durationMs = Math.round(performance.now() - startedAt);
-            const responseText = await response.text();
-            let payload: unknown = null;
-
-            try {
-                payload = responseText ? JSON.parse(responseText) : null;
-            } catch {
-                payload = responseText;
-            }
-
-            if (!response.ok) {
-                const detail = typeof payload === "string" ? payload : JSON.stringify(payload);
-                throw new Error(`HTTP ${response.status} — ${detail || response.statusText}`);
-            }
-
-            setApiResults(payload);
-            setApiLogs((current) => [{
-                id: `${Date.now()}-${Math.random()}`,
-                timestamp: new Date().toISOString(),
-                method: "GET",
-                endpoint,
-                status: response.status,
-                durationMs,
-                message: "Requête exécutée avec succès",
-            }, ...current].slice(0, 50));
-        } catch (error) {
-            const durationMs = Math.round(performance.now() - startedAt);
-            const message = error instanceof Error ? error.message : "Erreur inconnue pendant la requête";
-            setApiError(message);
-            setApiLogs((current) => [{
-                id: `${Date.now()}-${Math.random()}`,
-                timestamp: new Date().toISOString(),
-                method: "GET",
-                endpoint,
-                status: "ERROR",
-                durationMs,
-                message,
-            }, ...current].slice(0, 50));
-        } finally {
-            setApiLoading(false);
-        }
-    };
-
-    const handleApplyFilters = () => {
-        /*
-         * À remplacer plus tard par :
-         *
-         * GET /api/agriculture?
-         * region=Kaffrine&
-         * crop=Arachide&
-         * fertilizer=NPK&
-         * ...
-         *
-         * Les résultats pourront ensuite alimenter les couches
-         * quantitatives et cartographiques.
-         */
-
-        console.log("Filtres appliqués :", filters);
-
-        setActiveView("map");
-    };
-
-    const handleResetFilters = () => {
-        setFilters(defaultFilters);
-    };
-
-    const handleLocate = () => {
-        /*
-         * À remplacer par la géolocalisation réelle ou
-         * la position sélectionnée dans MapLibre.
-         */
-
-        console.log("Localisation demandée");
-    };
-
-    // Gestionnaires provisoires des boutons de compte utilisateur.
-    // Ils pourront ensuite ouvrir de vrais panneaux ou dialogues.
-    const handleUserProfile = () => {
-        console.log("Ouverture du profil utilisateur");
-    };
-
-    const handleUserSettings = () => {
-        console.log("Ouverture des paramètres utilisateur");
-    };
-
-    const handleUserBells = () => {
-        console.log("Ouverture des notifications");
-    };
-
-    const handleUserOthersOptions = () => {
-        console.log("Ouverture des autres options utilisateur");
-    };
-
-    const handleRemoveLayer = (layerId) => {
-        setActiveLayers((current) => ({
-            ...current,
-            [layerId]: false,
-        }));
-
-        setActiveLayerOrder((current) =>
-            current.filter((id) => id !== layerId)
-        );
-    };
-
-    const renderPanel = () => {
-        switch (activeView) {
-            case "filters":
-                return (
-                    <FilterPanel
-                        filters={filters}
-                        setFilters={setFilters}
-                        onApply={handleApplyFilters}
-                        onReset={handleResetFilters}
-                        onClose={() => setActiveView(null)}
+                {/* Raccourcis des services */}
+                <section>
+                    <SectionTitle
+                        title="Services disponibles"
+                        description="Accède rapidement aux principales catégories de données."
+                        icon={MapPin}
                     />
-                );
 
-            case "layers":
-                return (
-                    <LayerPanel
-                        activeLayers={activeLayers}
-                        setActiveLayers={setActiveLayers}
-                        layerSettings={layerSettings}
-                        setLayerSettings={setLayerSettings}
-                        activeLayerOrder={activeLayerOrder}
-                        setActiveLayerOrder={setActiveLayerOrder}
-                        baseMap={baseMap}
-                        setBaseMap={setBaseMap}
-                        onClose={() => setActiveView(null)}
-                    />
-                );
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        {[
+                            {
+                                title: "Géographie",
+                                description: "Zones géographiques",
+                                path: "/api/v1/zones",
+                                icon: MapPin,
+                            },
+                            {
+                                title: "Climat",
+                                description: "Observations et stations",
+                                path: "/api/v1/climat",
+                                icon: CloudRain,
+                            },
+                            {
+                                title: "Agriculture",
+                                description: "Données et produits agricoles",
+                                path: "/api/v1/agriculture",
+                                icon: Layers3,
+                            },
+                            {
+                                title: "Prédictions",
+                                description: "Options du modèle de rendement",
+                                path: "/api/v1/predictions/options",
+                                icon: Activity,
+                            },
+                        ].map((service) => {
+                            const Icon = service.icon;
 
-            case "analysis":
-                return (
-                    <AnalysisPanel
-                        selectedZone={selectedZone}
-                        onClose={() => setActiveView(null)}
-                    />
-                );
+                            return (
+                                <button
+                                    key={service.path}
+                                    type="button"
+                                    onClick={() => {
+                                        handleEndpointChange(service.path);
+                                        window.scrollTo({ top: 0, behavior: "smooth" });
+                                    }}
+                                    className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left transition hover:border-emerald-300 hover:shadow-sm"
+                                >
+                                    <div className="rounded-xl bg-emerald-50 p-3 text-emerald-700 transition group-hover:bg-emerald-100">
+                                        <Icon size={21} />
+                                    </div>
 
-            case "risks":
-                return (
-                    <RiskPanel
-                        onClose={() => setActiveView(null)}
-                    />
-                );
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-bold text-slate-800">
+                                            {service.title}
+                                        </p>
+                                        <p className="mt-1 text-xs text-slate-500">
+                                            {service.description}
+                                        </p>
+                                    </div>
 
-            case "history":
-                return (
-                    <HistoryPanel
-                        onClose={() => setActiveView(null)}
-                    />
-                );
+                                    <RefreshCw
+                                        size={15}
+                                        className="shrink-0 text-slate-400 transition group-hover:text-emerald-700"
+                                    />
+                                </button>
+                            );
+                        })}
+                    </div>
+                </section>
 
-            case "satellite":
-                return (
-                    <SatellitePanel
-                        onClose={() => setActiveView(null)}
-                    />
-                );
-
-            default:
-                return null;
-        }
-    };
-
-    return (
-        <div className="min-h-screen w-full overflow-x-hidden bg-slate-100 text-slate-900">
-            <section className="relative h-[100svh] min-h-[640px] w-full overflow-hidden bg-slate-200">
-                <DashboardHeader
-                    onOpenSearch={() => setActiveView("filters")}
-                />
-
-                <LocationMapDashboard
-                    selectedZone={selectedZone}
-                    onSelectZone={setSelectedZone}
-                    zoom={zoom}
-                    setZoom={setZoom}
-                    baseMap={baseMap}
-                    onOpenBaseMap={() => setActiveView("base-map")}
-                    activeLayerIds={activeLayerIds}
-                    layerSettings={layerSettings}
-                    onRemoveLayer={handleRemoveLayer}
-                    onLocate={handleLocate}
-                    onHandleUserProfile={handleUserProfile}
-                    onHandleUserSettings={handleUserSettings}
-                    onHandleUserBells={handleUserBells}
-                    onHandleUserOthersOptions={handleUserOthersOptions}
-                    onQueryApi={handleQueryZones}
-                    apiLoading={apiLoading}
-                />
-
-                {activeView === "base-map" && (
-                    <BaseMapPanel
-                        baseMap={baseMap}
-                        setBaseMap={setBaseMap}
-                        onClose={() => setActiveView(null)}
-                    />
-                )}
-
-                {renderPanel()}
-
-                <ApiResultsPanel
-                    open={resultsOpen}
-                    loading={apiLoading}
-                    error={apiError}
-                    data={apiResults}
-                    logs={apiLogs}
-                    consoleOpen={apiConsoleOpen}
-                    onToggleConsole={() => setApiConsoleOpen((open) => !open)}
-                    onClose={() => setResultsOpen(false)}
-                    onRefresh={handleQueryZones}
-                />
-
-                <BottomNavigation
-                    activeView={activeView}
-                    setActiveView={setActiveView}
-                    activeLayerCount={activeLayerIds.length}
-                />
-            </section>
-
-            <DashboardMapsServices
-                loading={apiLoading}
-                error={apiError}
-                data={apiResults}
-                logs={apiLogs}
-                onRefresh={handleQueryZones}
-            />
+                {/* Pied de page */}
+                <footer className="border-t border-slate-200 py-5">
+                    <div className="flex flex-col justify-between gap-2 text-xs text-slate-400 sm:flex-row">
+                        <p>Assaman-Suuf · Supervision des services agroclimatiques</p>
+                        <p>React · TypeScript · Axios · FastAPI</p>
+                    </div>
+                </footer>
+            </main>
         </div>
     );
 }
