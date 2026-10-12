@@ -1,0 +1,1456 @@
+/* Définit les couleurs du thème clair et les variables partagées par l'interface. */
+:root {
+  color-scheme: light;
+  --principal: #245d98;
+  --soleil: #a75522;
+  --vert: #318364;
+  --alerte: #a94f24;
+  --bleu-clair: #9bb9dd;
+  --fond-vert: #e8f0e9;
+  --fond: #f3f5f2;
+  --fond-info: #e7eef8;
+  --texte-info: #234a79;
+  --carte: #ffffff;
+  --texte: #17231e;
+  --discret: #5d6963;
+  --bordure: #d9e0dc;
+  --ombre: 0 1px 2px rgb(18 36 28 / 4%), 0 8px 22px rgb(18 36 28 / 5%);
+  --rayon: 14px;
+  --fond-lateral: #13221b;
+  --texte-lateral: #d0d9d3;
+  --actif-lateral: #1b2f24;
+  --sans-donnee: #a8b3bd;
+  font-family: Inter, "Segoe UI", Roboto, system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--texte);
+  background: var(--fond);
+}
+
+/* Le thème clair suit la maquette; le mode sombre reste activable. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --fond: #111a16;
+  --carte: #1a2821;
+  --texte: #e7eee9;
+  --discret: #a4b1a9;
+  --bordure: #34443b;
+  --ombre: 0 1px 2px rgb(0 0 0 / 30%), 0 10px 28px rgb(0 0 0 / 25%);
+  --fond-lateral: #0b1912;
+  --texte-lateral: #d0d9d3;
+  --actif-lateral: #203e2f;
+  --sans-donnee: #75867b;
+  --fond-vert: #26382d;
+  --fond-info: color-mix(in srgb, var(--principal) 22%, var(--carte));
+  --texte-info: color-mix(in srgb, var(--bleu-clair) 65%, var(--texte));
+}
+
+.entete-module-vulnerabilite .description-vulnerabilite {
+  margin-top: 4px;
+  font-size: 0.82rem;
+}
+
+/* Normalise les dimensions et la typographie de la page. */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  color: var(--texte);
+  background: var(--fond);
+  background-attachment: fixed;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+button {
+  font: inherit;
+}
+
+button:focus-visible {
+  outline: 3px solid var(--principal);
+  outline-offset: 3px;
+}
+
+select:focus-visible {
+  outline: 3px solid var(--principal);
+  outline-offset: 2px;
+}
+
+/* Aligne le contenu sur une largeur confortable pour les tableaux de bord. */
+.conteneur {
+  width: min(100% - 40px, 1160px);
+  margin-inline: auto;
+}
+
+/* Organise le tableau de bord autour d'une navigation latérale persistante. */
+.app-shell {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: 256px minmax(0, 1fr);
+}
+
+.barre-laterale {
+  position: sticky;
+  z-index: 10;
+  top: 0;
+  display: flex;
+  height: 100vh;
+  flex-direction: column;
+  align-self: start;
+  padding: 26px 16px 20px;
+  color: var(--texte-lateral);
+  background: var(--fond-lateral);
+}
+
+.barre-laterale .conteneur {
+  width: auto;
+  margin: 0;
+}
+
+.entete {
+  margin-bottom: 26px;
+}
+
+.entete::after {
+  display: none;
+}
+
+.entete-contenu {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 8px;
+}
+
+.bouton-theme {
+  margin: 12px 8px 0;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--texte-lateral) 28%, transparent);
+  border-radius: 8px;
+  color: var(--texte-lateral);
+  background: transparent;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bouton-theme:hover {
+  color: #ffffff;
+  background: color-mix(in srgb, var(--actif-lateral) 65%, transparent);
+}
+
+.bouton-theme:focus-visible {
+  outline-color: var(--bleu-clair);
+}
+
+.logo {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.entete h1,
+.entete p {
+  margin: 0;
+}
+
+.entete h1 {
+  color: #ffffff;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.entete p {
+  color: #a8b7ae;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+/* Présente les profils disponibles dans le style de navigation de la maquette. */
+.navigation {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.zone-application {
+  min-width: 0;
+  padding: 32px clamp(18px, 3.4vw, 52px);
+}
+
+/* Organise les sélecteurs sur plusieurs lignes selon la largeur disponible. */
+.filtres {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 16px;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--carte);
+}
+
+.filtres label {
+  display: flex;
+  min-width: min(100%, 160px);
+  flex: 1 1 160px;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--discret);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.filtres select {
+  min-height: 46px;
+  padding: 9px 12px;
+  border: 1px solid var(--bordure);
+  border-radius: 9px;
+  color: var(--texte);
+  background: var(--carte);
+  font: inherit;
+  font-size: 0.9rem;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.bouton-secondaire {
+  min-height: 46px;
+  padding: 8px 14px;
+  border: 1px solid var(--bordure);
+  border-radius: 10px;
+  color: var(--texte);
+  background: var(--carte);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bouton-secondaire:hover {
+  border-color: var(--principal);
+}
+
+/* Regroupe les deux poignées du curseur temporel et leurs libellés. */
+.curseur-periode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 20px;
+  width: min(100%, 1160px);
+  margin: 0 auto 10px;
+  padding: 12px 16px;
+  border: 1px solid var(--bordure);
+  border-radius: 12px;
+  color: var(--texte);
+  background: var(--carte);
+}
+
+.curseur-periode legend {
+  padding-inline: 6px;
+  color: var(--discret);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.curseur-periode label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--discret);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.curseur-periode input {
+  width: 100%;
+  accent-color: var(--principal);
+}
+
+.curseur-periode input:focus-visible {
+  outline: 3px solid var(--principal);
+  outline-offset: 3px;
+}
+
+.curseur-periode:disabled {
+  opacity: 0.7;
+}
+
+.note-periode {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--discret);
+  font-size: 0.78rem;
+}
+
+/* Rend chaque filtre actif visible et retirable individuellement. */
+.filtres-actifs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.pastille-filtre {
+  padding: 5px 11px;
+  border: 1px solid color-mix(in srgb, var(--principal) 35%, var(--bordure));
+  border-radius: 999px;
+  color: var(--texte);
+  background: color-mix(in srgb, var(--principal) 9%, var(--carte));
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pastille-filtre span {
+  padding-left: 4px;
+  color: var(--principal);
+  font-size: 1rem;
+}
+
+.onglet {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 11px;
+  color: var(--texte-lateral);
+  background: transparent;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.onglet::before {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  margin-right: 12px;
+  border-radius: 50%;
+  background: #3d5b4b;
+  content: "";
+}
+
+.onglet:hover {
+  color: #ffffff;
+  background: color-mix(in srgb, var(--actif-lateral) 65%, transparent);
+}
+
+.onglet.actif {
+  color: #ffffff;
+  background: var(--actif-lateral);
+}
+
+.onglet.actif::before {
+  background: #79a8dd;
+}
+
+/* Réserve une zone lisible aux contenus ajoutés dans les prochaines étapes. */
+.contenu-principal {
+  width: min(100%, 1160px);
+  min-height: 260px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.contenu-principal h2 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+}
+
+.texte-introduction {
+  margin: 0;
+  color: var(--discret);
+}
+
+/* Aligne le titre de la vue et la sélection de variable climatique. */
+.entete-vue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.entete-vue h2 {
+  margin: 0;
+}
+
+.introduction-vue {
+  max-width: 760px;
+}
+
+.sur-titre {
+  margin: 0 0 4px;
+  color: var(--discret);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.introduction-vue h2 {
+  font-size: clamp(1.8rem, 3vw, 2.35rem);
+  letter-spacing: -0.035em;
+}
+
+.introduction-vue .texte-introduction {
+  max-width: 680px;
+  margin-top: 5px;
+}
+
+.vue-ong .entete-vue {
+  margin-bottom: 20px;
+}
+
+.entete-classement {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.entete-classement h3 {
+  margin: 0;
+}
+
+.entete-classement p {
+  margin: 4px 0 0;
+  color: var(--discret);
+  font-size: 0.82rem;
+}
+
+.compte-regions {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: var(--principal);
+  background: color-mix(in srgb, var(--principal) 10%, var(--carte));
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.info-periode {
+  margin-bottom: 18px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  color: var(--texte-info);
+  background: var(--fond-info);
+  font-size: 0.88rem;
+}
+
+.info-periode strong {
+  font-weight: 700;
+}
+
+.selecteur-variable {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--discret);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.selecteur-variable select {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--bordure);
+  border-radius: 10px;
+  color: var(--texte);
+  background: var(--carte);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+/* Signale les anomalies climatiques avec un contraste distinct des graphiques. */
+.alertes {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--alerte) 35%, transparent);
+  border-left: 5px solid var(--alerte);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--alerte) 10%, var(--carte));
+}
+
+.alertes p {
+  margin: 3px 0;
+}
+
+.grille-ministere-principale {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(260px, 0.9fr);
+  align-items: stretch;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.carte-alertes {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--carte);
+}
+
+.entete-alertes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.entete-alertes h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.compte-alertes {
+  display: grid;
+  min-width: 28px;
+  height: 28px;
+  place-items: center;
+  padding-inline: 7px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: var(--soleil);
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.carte-alertes ul {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.carte-alertes li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--fond) 75%, var(--carte));
+}
+
+.badge-alerte {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border-radius: 6px;
+  color: #ffffff;
+  background: var(--alerte);
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.carte-alertes li strong {
+  font-size: 0.88rem;
+}
+
+.carte-alertes li p,
+.aucune-alerte {
+  margin: 3px 0 0;
+  color: var(--discret);
+  font-size: 0.82rem;
+}
+
+/* Affiche les cinq KPI avec la même grille que les futures vues graphiques. */
+.grille-kpi {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 185px), 1fr));
+  gap: 14px;
+  margin: 18px 0 22px;
+}
+
+.carte-kpi {
+  display: flex;
+  min-height: 132px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 18px 20px;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--carte);
+}
+
+.libelle-kpi {
+  color: var(--discret);
+  font-size: 0.82rem;
+  font-weight: 550;
+}
+
+.carte-kpi strong {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: clamp(1.7rem, 2vw, 2rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.unite-kpi {
+  color: var(--discret);
+  font-size: 0.84rem;
+  font-weight: 450;
+}
+
+.grille-kpi-vulnerabilite .carte-kpi {
+  border-left: 4px solid var(--couleur-kpi);
+}
+
+.message-etat,
+.message-erreur {
+  padding: 14px 16px;
+  border-radius: 12px;
+}
+
+.chargement-donnees {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  color: var(--discret);
+  background: color-mix(in srgb, var(--principal) 8%, var(--carte));
+}
+
+.chargement-donnees p {
+  margin: 0 0 8px;
+}
+
+.barre-progression {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bordure);
+}
+
+.barre-progression span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--principal), var(--bleu-clair));
+  transition: width 200ms ease;
+}
+
+.message-etat {
+  color: var(--discret);
+  background: color-mix(in srgb, var(--principal) 8%, var(--carte));
+}
+
+.message-erreur {
+  border: 1px solid color-mix(in srgb, var(--alerte) 40%, transparent);
+  border-left: 5px solid var(--alerte);
+  background: color-mix(in srgb, var(--alerte) 8%, var(--carte));
+}
+
+.message-erreur p {
+  margin: 0 0 12px;
+}
+
+.info-climat {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--soleil) 45%, transparent);
+  border-left: 5px solid var(--soleil);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--soleil) 14%, var(--carte));
+}
+
+/* Dispose les graphiques et cartes réservées en colonnes réactives. */
+.grille-graphiques {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  padding-bottom: 48px;
+}
+
+.carte-graphique,
+.carte-reservee {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--carte);
+  box-shadow: none;
+}
+
+.carte-graphique h3,
+.carte-reservee h3 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.entete-carte-graphique {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.entete-carte-graphique h3 {
+  margin: 0;
+}
+
+.bouton-export {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border: 1px solid var(--bordure);
+  border-radius: 8px;
+  color: var(--discret);
+  background: var(--carte);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bouton-export:hover {
+  border-color: var(--principal);
+  color: var(--principal);
+}
+
+.zone-graphique {
+  position: relative;
+  height: 300px;
+}
+
+.carte-senegal {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  min-height: 390px;
+}
+
+.contenu-carte-senegal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.description-carte {
+  margin: 4px 0 0;
+  color: var(--discret);
+  font-size: 0.82rem;
+}
+
+.profil-region {
+  min-width: 0;
+  min-height: 180px;
+  padding: 16px;
+  border: 1px solid var(--bordure);
+  border-radius: 12px;
+  background: var(--fond);
+}
+
+.profil-region .sur-titre {
+  margin-bottom: 8px;
+}
+
+.profil-region h4 {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.25;
+}
+
+.libelle-profil {
+  margin: 12px 0 3px;
+  color: var(--discret);
+  font-size: 0.8rem;
+}
+
+.valeur-profil {
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.details-profil {
+  margin: 8px 0 0;
+  color: var(--discret);
+  font-size: 0.82rem;
+}
+
+.avis-profil {
+  margin: 12px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--texte-info);
+  background: var(--fond-info);
+  font-size: 0.78rem;
+}
+
+.selecteur-carte {
+  display: flex;
+  width: min(100%, 320px);
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  color: var(--discret);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.selecteur-carte select {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--bordure);
+  border-radius: 10px;
+  color: var(--texte);
+  background: var(--carte);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.selecteur-carte select:focus-visible {
+  outline: 3px solid var(--principal);
+  outline-offset: 2px;
+}
+
+.barre-outils-carte {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.carte-leaflet {
+  z-index: 0;
+  width: 100%;
+  height: 300px;
+  border: 1px solid var(--bordure);
+  border-radius: 12px;
+  background: var(--carte);
+}
+
+.carte-leaflet .leaflet-control-attribution {
+  font-size: 0.65rem;
+}
+
+.carte-leaflet .leaflet-overlay-pane path:focus-visible {
+  outline: 3px solid var(--soleil);
+  outline-offset: 2px;
+}
+
+.infobulle-carte {
+  border: 1px solid var(--bordure);
+  border-radius: 8px;
+  color: var(--texte);
+  background: var(--carte);
+  box-shadow: var(--ombre);
+}
+
+.infobulle-carte strong,
+.infobulle-carte div,
+.infobulle-carte small {
+  display: block;
+}
+
+.infobulle-carte div {
+  margin-top: 3px;
+}
+
+.infobulle-carte small {
+  margin-top: 4px;
+  color: var(--discret);
+}
+
+.legende-carte {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  margin-top: 0;
+  color: var(--texte);
+  font-size: 0.75rem;
+}
+
+.legende-titre {
+  font-weight: 700;
+}
+
+.legende-degrade {
+  height: 14px;
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+}
+
+.legende-reperes {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--discret);
+  font-variant-numeric: tabular-nums;
+}
+
+.legende-reperes span {
+  display: grid;
+  gap: 2px;
+}
+
+.legende-reperes span:nth-child(2):last-child {
+  text-align: right;
+}
+
+.legende-reperes small,
+.legende-plage {
+  color: var(--discret);
+  font-size: 0.7rem;
+}
+
+.legende-sans-donnee {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--discret);
+}
+
+.legende-sans-donnee i {
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--bordure);
+  border-radius: 3px;
+  background: #a8b3bd;
+}
+
+.bouton-tableau-carte {
+  margin-top: 12px;
+}
+
+.tableau-carte-conteneur {
+  max-height: 300px;
+  overflow: auto;
+  margin-top: 12px;
+  border: 1px solid var(--bordure);
+  border-radius: 10px;
+}
+
+.tableau-carte {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.tableau-carte caption {
+  padding: 10px;
+  color: var(--discret);
+  font-weight: 650;
+  text-align: left;
+}
+
+.tableau-carte th,
+.tableau-carte td {
+  padding: 8px 10px;
+  border-top: 1px solid var(--bordure);
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.tableau-carte thead th {
+  position: sticky;
+  top: 0;
+  color: var(--texte);
+  background: var(--fond);
+}
+
+.tableau-carte tbody th {
+  font-weight: 600;
+}
+
+.note-carte {
+  margin: 8px 0 0;
+  color: var(--discret);
+  font-size: 0.78rem;
+}
+
+.zone-graphique.cliquable {
+  cursor: pointer;
+}
+
+.controle-filtre-graphique {
+  margin-top: 10px;
+  border-top: 1px solid var(--bordure);
+  padding-top: 8px;
+  color: var(--discret);
+  font-size: 0.78rem;
+}
+
+.controle-filtre-graphique summary {
+  width: fit-content;
+  color: var(--principal);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.controle-filtre-graphique label {
+  display: flex;
+  max-width: 360px;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.controle-filtre-graphique select {
+  min-height: 40px;
+  padding: 7px 10px;
+  border: 1px solid var(--bordure);
+  border-radius: 8px;
+  color: var(--texte);
+  background: var(--carte);
+  font: inherit;
+}
+
+.cadre-sans-climat {
+  display: grid;
+  min-height: 300px;
+  place-items: center;
+  padding: 20px;
+  border: 2px dashed var(--bordure);
+  border-radius: 12px;
+  color: var(--discret);
+  font-weight: 600;
+  text-align: center;
+}
+
+.note-graphique {
+  margin: -4px 0 8px;
+  color: var(--discret);
+  font-size: 0.8rem;
+}
+
+.carte-reservee {
+  align-self: start;
+  min-height: 0;
+  border: 2px dashed var(--bordure);
+  background: transparent;
+  box-shadow: none;
+  color: var(--discret);
+}
+
+.carte-reservee h3 {
+  color: var(--texte);
+}
+
+.carte-reservee p {
+  margin: 0;
+  color: var(--soleil);
+  font-weight: 650;
+}
+
+/* Permet de parcourir le classement sur mobile sans écraser les colonnes. */
+.carte-classement {
+  overflow: hidden;
+}
+
+.carte-classement .conteneur-tableau {
+  border: 1px solid var(--bordure);
+  border-radius: 10px;
+}
+
+.conteneur-tableau {
+  overflow-x: auto;
+}
+
+.carte-classement table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.carte-classement th {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--bordure);
+  color: var(--discret);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.bouton-tri {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.bouton-tri:hover {
+  color: var(--principal);
+}
+
+.carte-classement td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--bordure);
+}
+
+.bouton-region {
+  padding: 0;
+  border: 0;
+  color: var(--texte);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.bouton-region:hover,
+.bouton-region[aria-pressed="true"] {
+  color: var(--principal);
+  text-decoration-color: currentColor;
+}
+
+.carte-classement tbody tr:hover {
+  background: color-mix(in srgb, var(--principal) 8%, transparent);
+}
+
+.carte-classement tbody tr:first-child td:first-child {
+  color: var(--soleil);
+  font-weight: 700;
+}
+
+@media (min-width: 900px) {
+  .grille-graphiques {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .grille-ministere-principale {
+    grid-template-columns: minmax(0, 1.8fr) minmax(260px, 0.9fr);
+  }
+
+  .contenu-carte-senegal {
+    grid-template-columns: minmax(0, 1fr) minmax(210px, 280px);
+    align-items: center;
+  }
+}
+
+@media (max-width: 899px) {
+  .grille-ministere-principale {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .barre-laterale {
+    position: static;
+    height: auto;
+    padding: 14px 18px 12px;
+  }
+
+  .entete {
+    margin-bottom: 12px;
+  }
+
+  .navigation {
+    display: flex;
+    overflow-x: auto;
+  }
+
+  .onglet {
+    flex: 0 0 auto;
+  }
+
+  .zone-application {
+    padding: 22px 18px;
+  }
+}
+
+/* Réduit les espacements sur les petits écrans sans masquer de contenu. */
+@media (max-width: 600px) {
+  .conteneur,
+  .contenu-principal {
+    width: 100%;
+  }
+
+  .zone-application {
+    padding: 18px 12px;
+  }
+
+  .entete-vue {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .filtres label,
+  .filtres select,
+  .filtres .bouton-secondaire {
+    width: 100%;
+  }
+
+  .selecteur-variable select {
+    width: 100%;
+  }
+
+  .curseur-periode {
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .entete-carte-graphique {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* Désactive les mouvements décoratifs si l'utilisateur le demande. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .barre-progression span {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.legende-carte {
+  grid-column: 1 / -1;
+  padding-top: 4px;
+}
+
+/* Présente l'analyse de vulnérabilité comme une section pleine largeur. */
+.module-vulnerabilite {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--carte);
+  box-shadow: var(--ombre);
+}
+
+.entete-module-vulnerabilite {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.entete-module-vulnerabilite h3,
+.entete-module-vulnerabilite p {
+  margin: 0;
+}
+
+.entete-module-vulnerabilite p {
+  margin-top: 4px;
+  color: var(--discret);
+  font-size: 0.9rem;
+}
+
+.case-donnees-douteuses {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.case-donnees-douteuses input {
+  accent-color: var(--principal);
+  min-width: 18px;
+  min-height: 18px;
+}
+
+.grille-kpi-vulnerabilite {
+  margin: 0;
+}
+
+.grille-details-vulnerabilite {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.grille-details-vulnerabilite > * {
+  min-width: 0;
+}
+
+.tableau-zones-conteneur {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--bordure);
+  border-radius: 10px;
+}
+
+.tableau-zones {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.tableau-zones caption {
+  padding: 8px 0 12px;
+  color: var(--texte);
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.tableau-zones th,
+.tableau-zones td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--bordure);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tableau-zones thead th {
+  position: sticky;
+  top: 0;
+  color: var(--discret);
+  font-size: 0.82rem;
+  background: var(--carte);
+}
+
+.tableau-zones thead button,
+.lien-region {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tableau-zones tbody tr {
+  cursor: pointer;
+}
+
+.tableau-zones tbody tr:hover,
+.tableau-zones tbody tr.ligne-selectionnee {
+  background: color-mix(in srgb, var(--principal) 9%, var(--carte));
+}
+
+.tableau-zones button:focus-visible,
+.tableau-zones tbody tr:focus-visible,
+.explication-vulnerabilite summary:focus-visible {
+  outline: 3px solid var(--principal);
+  outline-offset: 3px;
+}
+
+.lien-region {
+  color: var(--principal);
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.pastille-niveau {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  color: var(--texte);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.niveau-vulnerable {
+  background: color-mix(in srgb, var(--alerte) 22%, var(--carte));
+}
+
+.niveau-surveillance {
+  background: color-mix(in srgb, var(--soleil) 23%, var(--carte));
+}
+
+.niveau-normal {
+  background: color-mix(in srgb, var(--vert) 20%, var(--carte));
+}
+
+.niveau-non-evaluable {
+  background: color-mix(in srgb, var(--sans-donnee) 25%, var(--carte));
+}
+
+.explication-vulnerabilite {
+  border-top: 1px solid var(--bordure);
+  padding-top: 12px;
+}
+
+.explication-vulnerabilite summary {
+  width: fit-content;
+  color: var(--principal);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.explication-vulnerabilite div {
+  max-width: 90ch;
+  color: var(--discret);
+  line-height: 1.6;
+}
+
+.legende-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legende-categories li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.legende-categories i {
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--bordure);
+  border-radius: 4px;
+}
+
+@media (max-width: 600px) {
+  .entete-module-vulnerabilite {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .module-vulnerabilite {
+    padding: 12px;
+  }
+
+  .grille-details-vulnerabilite {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 899px) {
+  .grille-details-vulnerabilite {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
