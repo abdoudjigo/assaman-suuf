@@ -9,7 +9,7 @@ API REST du projet **DataFlow360**, construite avec **FastAPI** pour exposer les
 L'API sert de **couche entre le frontend et le data warehouse Snowflake**.
 
 ```text
-Frontend / Dashboard
+Frontend / DashboardApiRun
         |
         v
      FastAPI
@@ -979,7 +979,7 @@ Le contrat API **ne nécessite pas d'accès direct à Snowflake**.
 ### Schéma global
 
 ```text
-Frontend (Dashboard)
+Frontend (DashboardApiRun)
         |
         v
 http://localhost:8001

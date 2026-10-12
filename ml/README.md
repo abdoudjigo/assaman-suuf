@@ -19,7 +19,7 @@ Snowflake ML.ML_RENDEMENT_CAMPAGNE ─► export ─► préparation ─► Lass
           (dbt, 9 894 campagnes)                (7 697 gardées)
 
                          SIMULATION (à chaque demande)
-Dashboard ─► API  POST /api/v1/predictions/simulation
+DashboardApiRun ─► API  POST /api/v1/predictions/simulation
              │  culture, région, superficie, année  (+ pluie et température, facultatives)
              │
              │  climat de la campagne :

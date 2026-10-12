@@ -81,7 +81,7 @@ flowchart TD
     DBT --> ML[ML Layer]
 
     BI --> PBI["Power BI + DAX"]
-    PBI --> DASH["Dashboard & Maps"]
+    PBI --> DASH["DashboardApiRun & Maps"]
 
     API --> FA["FastAPI + Swagger"]
     FA --> REDIS[("Redis Cache")]
@@ -121,7 +121,7 @@ flowchart TD
 
 ## Livrables
 
-- **Dashboard Power BI** alimenté par Snowflake, avec carte interactive et filtres géographiques
+- **DashboardApiRun Power BI** alimenté par Snowflake, avec carte interactive et filtres géographiques
 - **API FastAPI** documentée via Swagger
 - **Modèle de prédiction des rendements**, exposé dans une interface applicative
 - **Carte interactive** intégrée au dashboard
@@ -136,13 +136,13 @@ Le projet est piloté en **Scrum**, avec un board Trello organisé par étiquett
 
 | Axe | User Stories |
 |---|---|
-| Cadrage | US01 Dashboard · US04 API · US07 Prédiction · US11 Cartographie |
+| Cadrage | US01 DashboardApiRun · US04 API · US07 Prédiction · US11 Cartographie |
 | Technique | US14 Git/GitHub · US15 CI/CD |
 | Données | US16 Récupération · US17 Préparation |
 
 ```mermaid
 flowchart LR
-    US14["US14<br/>Git/GitHub"] --> US01["US01<br/>Dashboard"]
+    US14["US14<br/>Git/GitHub"] --> US01["US01<br/>DashboardApiRun"]
     US01 --> US04["US04<br/>API"]
     US04 --> US07["US07<br/>Prédiction"]
     US07 --> US11["US11<br/>Cartographie"]
@@ -159,7 +159,7 @@ flowchart LR
 ### Checklist — Sprint 1
 
 - [x] US14 — Mettre en place le dépôt Git/GitHub
-- [x] US01 — Définir les besoins du Dashboard
+- [x] US01 — Définir les besoins du DashboardApiRun
 - [x] US04 — Définir les besoins des API
 - [x] US07 — Définir le problème de prédiction
 - [x] US11 — Définir les besoins cartographiques
