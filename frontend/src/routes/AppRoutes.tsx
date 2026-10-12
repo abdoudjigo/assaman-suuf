@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import DashboardApiRun from "../pages/DashboardApiRun.tsx";
+import DashboardMain from "../pages/DashboardMain.tsx";
 import Climate from "../pages/Climate";
 import Agriculture from "../pages/Agriculture";
 import Map from "../pages/Map";
