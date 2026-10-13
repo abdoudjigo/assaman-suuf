@@ -1,0 +1,26 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: assaman-suuf-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    volumes:
+      - .:/app
+      - frontend_node_modules:/app/node_modules
+    networks:
+      - assaman-suuf
+
+volumes:
+  frontend_node_modules:
+
+networks:
+  assaman-suuf:
+    name: assaman-suuf
+    external: true

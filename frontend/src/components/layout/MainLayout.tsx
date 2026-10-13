@@ -1,4 +1,5 @@
 import Header from "./Header";
+import Footer from "./Footer.tsx";
 
 const MainLayout = () => {
     return (
@@ -14,6 +15,8 @@ const MainLayout = () => {
                 <main className="flex-1 bg-gray-50 p-6">
                     {/* Contenu de la page */}
                 </main>
+
+                <Footer/>
             </div>
         </div>
     );
