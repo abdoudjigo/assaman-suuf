@@ -27,3 +27,6 @@ logs/
 api/.venv/
 secrets/
 test_ml_full
+
+dashboard/node_modules
+api.zip
