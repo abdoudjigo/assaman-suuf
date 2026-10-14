@@ -19,11 +19,11 @@ Snowflake ML.ML_RENDEMENT_CAMPAGNE ─► export ─► préparation ─► Lass
           (dbt, 9 894 campagnes)                (7 697 gardées)
 
                          SIMULATION (à chaque demande)
-DashboardApiRun ─► API  POST /api/v1/predictions/simulation
+Page React /prediction ─► API  POST /api/v1/predictions/simulation
              │  culture, région, superficie, année  (+ pluie et température, facultatives)
              │
              │  climat de la campagne :
-             │    1. la pluie saisie par l'utilisateur          (scénario « et si… »)
+             │    1. la pluie saisie par l'utilisateur          (scénario « et si… », Snowflake non interrogé)
              │    2. sinon le climat observé dans Snowflake      (relevés GalsenAPI)
              │    3. sinon la normale de la région               (« année normale »)
              ▼
@@ -162,13 +162,21 @@ Réponse :
     "rendement_moyen_historique_t_ha": 0.737,
     "erreur_moyenne_test_t_ha": 0.159
   },
-  "modele_version": "20261008_004640"
+  "modele_version": "20261009_093928",
+  "avertissements": [
+    "Campagne non (entièrement) mesurée : normale de la région utilisée.",
+    "Année postérieure à 2015 : le modèle prolonge la tendance observée, la prédiction est moins sûre."
+  ]
 }
 ```
 
-- `climat.source` indique d'où vient le climat utilisé : `saisie_utilisateur`, `observe` ou `normale_region`.
+- `climat.source` indique d'où vient le climat utilisé : `saisie_utilisateur`, `observe` ou `normale_region`. Une pluie saisie prime sur le climat observé : l'API n'interroge alors pas Snowflake. Une température non saisie est complétée par l'observé, sinon par la normale.
+- `climat.tavg_moyenne` peut être `null` si aucune température n'est connue (la normale de Thies n'en a pas).
 - `reperes` sert à situer la prédiction : le rendement moyen historique, et l'erreur moyenne du modèle pour cette culture.
-- Une valeur inconnue (ex. `"Mais"` au lieu de `"Maïs"`) renvoie une erreur 422 qui liste les valeurs possibles.
+- `avertissements` signale une prédiction moins sûre : année postérieure à 2015, culture peu fiable (Patate douce, Maïs, Sésame), région sans station, campagne non (entièrement) mesurée, climat observé indisponible.
+- Une valeur inconnue (ex. `"Mais"` au lieu de `"Maïs"`) renvoie une erreur 422 qui liste les valeurs possibles ; une saison sans normale dans la région (contre-saison hors Saint-Louis) aussi.
+
+`POST /api/v1/predictions/rendement` accepte le même corps **sans** `pluie_cumul_mm` ni `tavg_moyenne` (climat observé, sinon normale). Les deux routes appellent `service_prediction.predire()`, qui ajoute les avertissements à `simulation.simuler()`.
 
 ---
 
@@ -193,6 +201,7 @@ ml/
 ├── notebooks/
 │   ├── 01_exploration.ipynb         les données du modèle
 │   └── 02_modele_simulation.ipynb   résultats et exemples de scénarios
+├── service_prediction.py  point d'entrée de l'API : predire() (climat, avertissements), options()
 └── scripts/
     ├── config.py              colonnes, chemins, règles métier
     ├── connexion_snowflake.py
@@ -202,8 +211,8 @@ ml/
     └── simulation.py          simuler() et lecture du climat observé
 api/
 ├── main.py
-├── routers/simulation.py
-└── schemas/simulation.py
+├── routers/predictions.py     /options, /rendement, /simulation/options, /simulation
+└── schemas/predictions.py     PredictionRequest, SimulationRequest, PredictionResponse
 ```
 
 ---

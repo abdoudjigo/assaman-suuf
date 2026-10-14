@@ -80,7 +80,8 @@ api/
 │   ├── agroclimat.py
 │   ├── zones.py
 │   ├── stations.py
-│   └── produits.py
+│   ├── produits.py
+│   └── predictions.py      # appelle ml.service_prediction
 │
 ├── schemas/
 │   ├── __init__.py
@@ -91,7 +92,8 @@ api/
 │   ├── agroclimat.py
 │   ├── zones.py
 │   ├── stations.py
-│   └── produits.py
+│   ├── produits.py
+│   └── predictions.py
 │
 └── secrets/
     ├── snowflake_api_key.pem
@@ -843,6 +845,26 @@ docker compose build
 docker compose up -d
 ```
 
+> ⚠️ Le code est **copié dans l'image** (`COPY api/routers …`), il n'est pas monté en volume. Après toute modification de l'API ou de `ml/service_prediction.py`, reconstruire : `docker compose up -d --build api`. Sans `--build`, l'ancien code tourne et les nouvelles routes renvoient 404.
+
+> **Snowflake injoignable depuis le conteneur** (`250001: Could not connect to Snowflake backend`) alors que l'hôte y accède : sur certains réseaux (partage de connexion mobile), le DNS interne de Docker ne résout pas `<compte>.snowflakecomputing.com`. Contournement local, **à ne pas commiter** : un `api/docker-compose.override.yml` qui fixe des DNS publics.
+>
+> ```yaml
+> services:
+>   api:
+>     dns: [1.1.1.1, 8.8.8.8]
+> ```
+
+### Tests automatisés
+
+Depuis la racine du projet, avec les dépendances de `api/requirements.txt` et `ml/requirements-runtime.txt` :
+
+```bash
+pytest tests/test_api tests/test_ml
+```
+
+Snowflake et Redis sont remplacés par des doublures : les tests vérifient le SQL généré (rendement Σ/Σ, filtres, liste blanche de `group_by`), le passage des paramètres au modèle et les codes d'erreur (422, 503, 500).
+
 ### Vérifier les conteneurs
 
 ```bash
@@ -1018,7 +1040,15 @@ POST /api/v1/predictions/simulation           idem + scénario « et si… » fa
 
 ## 23. Contrat frontend
 
-Pour le membre qui développe le dashboard, les informations principales sont :
+Le frontend React ([frontend/README.md](../frontend/README.md)) utilise :
+
+| Page | Routes |
+| --- | --- |
+| `/dashboard` | `agroclimat/agregats` (group_by `total`, `annee`, `produit`, `region`, `systeme_production`), `agroclimat/nuage`, `climat/annuel`, `zones`, `produits` |
+| `/prediction` | `predictions/simulation/options`, `predictions/simulation` (+ 17 appels pour la courbe de pluie), `agroclimat/agregats` |
+| `/supervision` | toutes les routes (console) |
+
+Les informations principales :
 
 ```text
 Base URL locale :
@@ -1046,7 +1076,7 @@ Le contrat API **ne nécessite pas d'accès direct à Snowflake**.
 ### Schéma global
 
 ```text
-Frontend (DashboardApiRun)
+Frontend React (Dashboard, Prédiction, Supervision)
         |
         v
 http://localhost:8001
@@ -1080,8 +1110,10 @@ Agroclimat                      ✅
 Zones                           ✅
 Stations                        ✅
 Produits                        ✅
+Agrégats Dashboard              ✅  (agregats, nuage, climat annuel)
 
-Prediction rendement            ⏸️
+Prédiction rendement            ✅  (/rendement)
+Simulation « et si… »           ✅  (/simulation)
 Docker Hub                      ⏳
 Kubernetes                      ⏳
 CI/CD                            ⏳

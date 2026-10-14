@@ -86,8 +86,9 @@ flowchart TD
     API --> FA["FastAPI + Swagger"]
     FA --> REDIS[("Redis Cache")]
 
-    ML --> MOD["XGBoost / Random Forest"]
-    MOD --> RJS["Application React JS"]
+    ML --> MOD["Lasso (scikit-learn)<br/>simulation du rendement"]
+    MOD --> FA
+    FA --> RJS["Application React<br/>Dashboard · Prédiction · Cartographie"]
 
     classDef source fill:#FEF3C7,stroke:#B45309,stroke-width:1px,color:#78350F
     classDef ingest fill:#DBEAFE,stroke:#1D4ED8,stroke-width:1px,color:#1E3A8A
@@ -113,8 +114,8 @@ flowchart TD
 | **Stockage & Transformation** | Snowflake (DWH), dbt + SQL |
 | **BI** | Power BI, DAX |
 | **API** | FastAPI, Swagger, Redis (cache) |
-| **Machine Learning** | XGBoost, Random Forest |
-| **Frontend** | React JS |
+| **Machine Learning** | scikit-learn — Lasso (comparé à régression linéaire et Ridge), voir [`ml/README.md`](ml/README.md) |
+| **Frontend** | React 19 + TypeScript (Vite), TanStack Query, Recharts, Leaflet, Tailwind CSS — voir [`frontend/README.md`](frontend/README.md) |
 | **CI/CD** | GitHub Actions (lint, tests, build, déploiement Docker vers GHCR) |
 | **Gestion de projet** | Scrum, Trello |
 | **Versioning** | Git / GitHub |
@@ -123,7 +124,8 @@ flowchart TD
 
 - **DashboardApiRun Power BI** alimenté par Snowflake, avec carte interactive et filtres géographiques
 - **API FastAPI** documentée via Swagger
-- **Modèle de prédiction des rendements**, exposé dans une interface applicative
+- **Modèle de prédiction des rendements**, exposé par l'API (`/api/v1/predictions/simulation`) et dans l'application React
+- **Application React** : Dashboard agroclimatique, Rendement & Prédiction (scénarios « et si… »), Cartographie, Supervision de l'API
 - **Carte interactive** intégrée au dashboard
 
 ## Méthodologie
@@ -186,7 +188,15 @@ pip install -r ml/requirements.txt
 # 4. Copier le fichier d'environnement
 cp .env.example .env
 # → renseigner les identifiants Snowflake, PostgreSQL, MongoDB, Kafka
+
+# 5. API FastAPI + Redis (http://localhost:8001/docs)
+cd api && docker compose up -d --build && cd ..
+
+# 6. Application React (http://localhost:5173)
+cd frontend && cp .env.example .env && npm install && npm run dev
 ```
+
+Détails : [`api/README.md`](api/README.md) · [`ml/README.md`](ml/README.md) · [`frontend/README.md`](frontend/README.md).
 
 ## Structure du projet
 
@@ -199,8 +209,9 @@ assaman-suuf/
 ├── dbt_project/                # modèles dbt (staging, intermediate, marts)
 ├── api/                        # application FastAPI
 │   └── requirements.txt
-├── ml/                         # entraînement et sérialisation des modèles
+├── ml/                         # entraînement, modèle de rendement et service de prédiction
 │   └── requirements.txt
+├── frontend/                   # application React (Dashboard, Prédiction, Cartographie, Supervision)
 ├── dashboard/                  # fichiers Power BI (.pbix) et documentation DAX
 ├── data/{raw,processed}/       # jamais versionné
 ├── tests/{test_ingestion,test_api,test_ml}/
