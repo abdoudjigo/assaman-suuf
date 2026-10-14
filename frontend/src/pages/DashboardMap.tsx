@@ -3,6 +3,7 @@ import L from "leaflet";
 import type { Map as LeafletMap, TileLayer } from "leaflet";
 import type { ReactNode } from "react";
 import "leaflet/dist/leaflet.css";
+import AppNav from "../components/layout/AppNav";
 import {
     Activity, AlertTriangle, BarChart3, Bell, Building2, Check, ChevronDown,
     CloudRain, Droplets, Filter, Gauge, Layers, LocateFixed,
@@ -269,6 +270,7 @@ export default function DashboardMap() {
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-700 text-white"><Sprout size={21}/></div>
             <div className="min-w-0 flex-1"><h1 className="text-base font-extrabold tracking-tight text-slate-900 md:text-lg">Assaman-Suuf</h1><p className="truncate text-[11px] text-slate-500 md:text-xs">Plateforme de décision agroclimatique · Sénégal</p></div>
             <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-semibold text-emerald-700 sm:flex"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500"/> Carte active</span>
+            <AppNav className="hidden sm:flex"/>
             <div className="relative flex items-center gap-1">
                 <IconButton title="Profil utilisateur" onClick={() => setPanel("profile")}><UserRound size={18}/></IconButton>
                 <IconButton title="Paramètres" onClick={() => setPanel("settings")}><Settings2 size={18}/></IconButton>

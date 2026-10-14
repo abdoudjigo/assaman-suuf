@@ -27,3 +27,4 @@ logs/
 api/.venv/
 secrets/
 test_ml_full
+*/docker-compose.override.yml

@@ -1,6 +1,7 @@
 
 import { useMemo, useState } from "react";
 import axios from "axios";
+import AppNav from "../components/layout/AppNav";
 import {
     Activity,
     AlertCircle,
@@ -465,6 +466,7 @@ function DashboardApiRun() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
+                        <AppNav />
                         <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2">
               <span
                   className={`h-2 w-2 rounded-full ${
