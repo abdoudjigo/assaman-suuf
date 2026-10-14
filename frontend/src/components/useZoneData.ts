@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
+import { normaliserRegion as norm } from "../utils/regions";
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "";
-const norm = (s = "") => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
 export type ZoneValue = { rainfall: number; temperature: number; ndvi: number; drought: number };
 export type ZoneValues = Record<string, ZoneValue>;

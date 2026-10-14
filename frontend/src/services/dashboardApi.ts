@@ -55,6 +55,36 @@ export type ZoneItem = { zone_key: string | null; region: string | null };
 
 export type ProduitItem = { produit_key: string | null; produit: string | null; categorie: string | null };
 
+export type StationItem = {
+    station_key: string | null;
+    station: string | null;
+    station_nom: string | null;
+    zone_key: string | null;
+    region: string | null;
+};
+
+/** Ligne de /api/v1/agroclimat : une campagne enrichie du climat (seuls les champs utilisés sont typés). */
+export type CampagneItem = {
+    observation_id: string | null;
+    region: string | null;
+    produit: string | null;
+    annee: number | null;
+    systeme_production: string | null;
+    superficie_ha: number | null;
+    production_t: number | null;
+    a_climat: boolean | null;
+};
+
+/** Ligne de /api/v1/climat : une observation station × mois. */
+export type ClimatItem = {
+    station_key: string | null;
+    region: string | null;
+    annee: number | null;
+    mois: number | null;
+    tavg: number | null;
+    prcp_mm: number | null;
+};
+
 /* ---------- Routes ---------- */
 
 // axios omet les paramètres undefined : un filtre vide n'est pas envoyé.
@@ -92,16 +122,28 @@ export async function fetchClimatAnnuel(region: string | null, signal?: AbortSig
 
 type Paginated<T> = { data: T[]; pagination: { total_pages: number } };
 
-/** Charge toutes les pages d'une route de référence (quelques dizaines de lignes). */
+/** Requêtes de pages simultanées au plus : chaque page déclenche un COUNT + SELECT Snowflake. */
+const MAX_PAGES_PARALLELES = 6;
+
+/** Charge toutes les pages d'une route paginée (200 lignes/page), dans l'ordre. */
 export async function fetchAllPages<T>(path: string, signal?: AbortSignal): Promise<T[]> {
     const getPage = (page: number) =>
         http.get<Paginated<T>>(path, { params: { page, page_size: PAGE_SIZE }, signal }).then((r) => r.data);
 
     const first = await getPage(1);
     const totalPages = Math.max(1, first.pagination?.total_pages ?? 1);
-    const rest = await Promise.all(Array.from({ length: totalPages - 1 }, (_, i) => getPage(i + 2)));
+    const pages: Paginated<T>[] = [first];
 
-    return [first, ...rest].flatMap((page) => page.data ?? []);
+    let next = 2;
+    const worker = async () => {
+        while (next <= totalPages) {
+            const page = next++;
+            pages[page - 1] = await getPage(page);
+        }
+    };
+    await Promise.all(Array.from({ length: Math.min(MAX_PAGES_PARALLELES, totalPages - 1) }, worker));
+
+    return pages.flatMap((page) => page.data ?? []);
 }
 
 export function getApiErrorMessage(error: unknown): string {

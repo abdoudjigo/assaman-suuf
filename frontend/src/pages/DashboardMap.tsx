@@ -4,6 +4,14 @@ import type { Map as LeafletMap, TileLayer } from "leaflet";
 import type { ReactNode } from "react";
 import "leaflet/dist/leaflet.css";
 import AppNav from "../components/layout/AppNav";
+import MapFilters from "../components/maps/MapFilters";
+import MapLegend from "../components/maps/MapLegend";
+import RegionDetails from "../components/maps/RegionDetails";
+import HachuresDefs from "../components/maps/HachuresDefs";
+import { estDisponible, INDICATEUR_PAR_DEFAUT, STYLE_HACHURES } from "../config/mapIndicators";
+import { useCartographie, useRegionsGeo, useStations } from "../hooks/useCartographieData";
+import { useRegionLayer, useStationLayer } from "../hooks/useMapLayers";
+import { formatEvolution, formatValeur, type CarteFiltres } from "../utils/cartographieAggregates";
 import {
     Activity, AlertTriangle, BarChart3, Bell, Building2, Check, ChevronDown,
     CloudRain, Droplets, Filter, Gauge, Layers, LocateFixed,
@@ -14,11 +22,10 @@ import {
 
 /**
  * DashboardMap — carte interactive Assaman-Suuf (version Leaflet).
- * Les fonds de carte (tuiles raster) et interactions Leaflet sont réels.
- * Les indicateurs et couches agroclimatiques restent des démonstrations tant
- * que les GeoJSON/rasters de l'API FastAPI/PostGIS ne sont pas connectés.
- *
- * Installation :  npm i leaflet && npm i -D @types/leaflet
+ * Les 14 régions (public/data/senegal-regions.geojson) sont colorées selon
+ * l'indicateur choisi, agrégé côté client depuis l'API (voir useCartographie) ;
+ * les stations climatiques sont positionnées sur la carte.
+ * Les autres couches du catalogue restent à connecter.
  */
 
 type Panel = "layers" | "filters" | "analysis" | "alerts" | "history" | "satellite" | "profile" | "settings" | "notifications" | "more" | null;
@@ -81,17 +88,12 @@ const layerCategories: { id: string; label: string; icon: typeof Layers; layers:
 ];
 
 const flatLayers = layerCategories.flatMap((category) => category.layers);
+// Couches réellement alimentées : "regions" (choroplèthe) et "weather-stations".
 const initialActiveLayers: Record<string, boolean> = {
-    regions: true, rainfall: true, "cultivated-zones": true,
+    regions: true, "weather-stations": true,
 };
 
-// Coordonnées au format [latitude, longitude] (ordre Leaflet)
-const demoZones = [
-    { name: "Saint-Louis", coordinates: [16.0179, -16.4897] as [number, number], rainfall: "287 mm", temperature: "30,8 °C", ndvi: "0,42", crop: "Riz / Maraîchage", drought: "Élevé", agriculture: "À surveiller" },
-    { name: "Kaffrine", coordinates: [14.1059, -15.5500] as [number, number], rainfall: "542 mm", temperature: "29,4 °C", ndvi: "0,61", crop: "Arachide", drought: "Moyen", agriculture: "Favorable" },
-    { name: "Kaolack", coordinates: [14.1510, -16.0726] as [number, number], rainfall: "615 mm", temperature: "28,9 °C", ndvi: "0,58", crop: "Arachide / Mil", drought: "Faible", agriculture: "Favorable" },
-];
-const zoneColor = (name: string) => name === "Saint-Louis" ? "#f97316" : name === "Kaolack" ? "#2563eb" : "#16a34a";
+const FILTRES_INITIAUX: CarteFiltres = { indicateur: INDICATEUR_PAR_DEFAUT, annee: null, produit: null, systeme: null };
 
 // Fonds de carte raster : aucune clé API requise.
 const baseMaps = [
@@ -139,14 +141,27 @@ export default function DashboardMap() {
     const [expanded, setExpanded] = useState<Record<string, boolean>>({ climate: true, agriculture: true });
     const [layerSearch, setLayerSearch] = useState("");
     const [activeOnly, setActiveOnly] = useState(false);
-    const [selectedZone, setSelectedZone] = useState<(typeof demoZones)[number] | null>(null);
-    const [filterRegion, setFilterRegion] = useState("Toutes les régions");
-    const [filterCrop, setFilterCrop] = useState("Toutes les cultures");
-    const [filterPeriod, setFilterPeriod] = useState("2026");
-    const [filterApplied, setFilterApplied] = useState(false);
+    const [selection, setSelection] = useState<string | null>(null);
+    const [filtres, setFiltres] = useState<CarteFiltres>(FILTRES_INITIAUX);
     const [profileMenu, setProfileMenu] = useState(false);
+    const [leafletMap, setLeafletMap] = useState<LeafletMap | null>(null);
 
     const activeLayerIds = useMemo(() => layerOrder.filter((id) => activeLayers[id]), [layerOrder, activeLayers]);
+
+    const regionsGeo = useRegionsGeo();
+    const stations = useStations();
+    const carto = useCartographie(filtres);
+    useRegionLayer(leafletMap, regionsGeo.data, carto, {
+        visible: !!activeLayers.regions,
+        opacite: (opacity.regions ?? 75) / 100,
+        selection,
+        onSelect: setSelection,
+    });
+    useStationLayer(leafletMap, stations.data, !!activeLayers["weather-stations"], setSelection);
+    const classement = useMemo(
+        () => [...(carto.regions?.values() ?? [])].sort((a, b) => (b.valeur ?? -Infinity) - (a.valeur ?? -Infinity)),
+        [carto.regions],
+    );
 
     // Création de la carte (une seule fois)
     useEffect(() => {
@@ -173,21 +188,11 @@ export default function DashboardMap() {
         tiles.on("tileerror", () => setMapError("Certaines tuiles du fond de carte ne se chargent pas. Vérifie ta connexion."));
         tileRef.current = tiles;
 
-        // Zones de démonstration
-        demoZones.forEach((zone) => {
-            const marker = L.circleMarker(zone.coordinates, {
-                radius: 10,
-                color: "#ffffff",
-                weight: 2,
-                fillColor: zoneColor(zone.name),
-                fillOpacity: 0.95,
-            }).addTo(map);
-            marker.bindTooltip(zone.name, { permanent: true, direction: "bottom", offset: [0, 8] });
-            marker.on("click", () => setSelectedZone(zone));
-        });
-
         map.on("zoomend", () => setZoom(map.getZoom()));
-        map.whenReady(() => setMapReady(true));
+        map.whenReady(() => {
+            setMapReady(true);
+            setLeafletMap(map); // les couches régions / stations s'y attachent
+        });
 
         // Recalcule la taille si le conteneur change (panneaux, redimensionnement)
         const resizeObserver = new ResizeObserver(() => map.invalidateSize());
@@ -195,6 +200,7 @@ export default function DashboardMap() {
 
         return () => {
             resizeObserver.disconnect();
+            setLeafletMap(null);
             map.remove();
             mapRef.current = null;
             tileRef.current = null;
@@ -262,6 +268,8 @@ export default function DashboardMap() {
     return <section className="relative h-[100svh] min-h-[620px] w-full overflow-hidden bg-slate-200 text-slate-900">
         {/* z-0 : isole les panneaux internes de Leaflet pour qu'ils restent sous l'interface */}
         <div ref={mapContainer} className="absolute inset-0 z-0" aria-label="Carte interactive du Sénégal"/>
+        <HachuresDefs/>
+        {regionsGeo.isError && <div role="alert" className="absolute left-1/2 top-36 z-40 flex max-w-[90vw] -translate-x-1/2 items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs text-red-700 shadow"><AlertTriangle size={15}/><span>{regionsGeo.error.message}</span><button onClick={() => regionsGeo.refetch()} className="font-semibold underline">Réessayer</button></div>}
         {!mapReady && <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-100/70"><div className="rounded-xl bg-white px-4 py-3 text-sm text-slate-600 shadow">Chargement de la carte…</div></div>}
         {mapError && <div role="status" className="absolute left-1/2 top-24 z-40 flex max-w-[90vw] -translate-x-1/2 items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs text-amber-800 shadow"><AlertTriangle size={15}/><span>{mapError}</span><button onClick={() => setMapError("")} aria-label="Fermer"><X size={14}/></button></div>}
 
@@ -306,7 +314,9 @@ export default function DashboardMap() {
             {activeLayerIds.length > 4 && <p className="mt-2 text-center text-[10px] text-slate-400">+ {activeLayerIds.length - 4} autres couches</p>}
         </div>}
 
-        <div className="absolute bottom-24 right-4 z-10 hidden rounded-xl border border-white/70 bg-white/90 px-3 py-2 text-[10px] text-slate-600 shadow backdrop-blur md:block">Sénégal · Fond : {baseMap} · Zoom {zoom.toFixed(1)}</div>
+        <div className="absolute bottom-24 right-4 z-10 md:right-6">
+            <MapLegend carto={carto} onEdit={() => setPanel("filters")} footer={<>Sénégal · Fond : {baseMap} · Zoom {zoom.toFixed(1)}</>}/>
+        </div>
 
         {/* Navigation principale */}
         <nav className="absolute bottom-4 left-1/2 z-20 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 items-center gap-1 overflow-x-auto rounded-2xl border border-white/70 bg-white/95 p-1.5 shadow-xl backdrop-blur-xl">
@@ -316,7 +326,11 @@ export default function DashboardMap() {
                 { id: "analysis", label: "Indicateurs", icon: BarChart3 },
                 { id: "alerts", label: "Alertes", icon: AlertTriangle },
                 { id: "history", label: "Historique", icon: Activity },
-            ].map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setPanel(panel === item.id ? null : item.id as Panel)} className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${panel === item.id ? "bg-green-700 text-white" : "text-slate-600 hover:bg-slate-100"}`}><Icon size={15}/><span className="hidden sm:inline">{item.label}</span></button>; })}
+            ].map((item) => {
+                const Icon = item.icon;
+                const bientot = item.id === "alerts" && !estDisponible("alertes");
+                return <button key={item.id} disabled={bientot} title={bientot ? "Bientôt disponible" : item.label} onClick={() => setPanel(panel === item.id ? null : item.id as Panel)} className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:text-slate-300 ${panel === item.id ? "bg-green-700 text-white" : "text-slate-600 hover:bg-slate-100 disabled:hover:bg-transparent"}`}><Icon size={15}/><span className="hidden sm:inline">{item.label}</span>{bientot && <span className="hidden rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-400 sm:inline">Bientôt</span>}</button>;
+            })}
         </nav>
 
         {/* Panneau Couches */}
@@ -325,29 +339,45 @@ export default function DashboardMap() {
             <div className="mt-4 flex gap-2"><div className="relative min-w-0 flex-1"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={layerSearch} onChange={(e) => setLayerSearch(e.target.value)} placeholder="Rechercher une couche…" className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-xs outline-none focus:border-green-500"/></div><button onClick={() => setActiveOnly((value) => !value)} className={`flex items-center gap-1 rounded-xl border px-3 text-xs ${activeOnly ? "border-green-500 bg-green-50 text-green-700" : "border-slate-200"}`}><Check size={14}/>Actives</button></div>
             {activeLayerIds.length > 0 && <section className="mt-4"><div className="mb-2 flex items-center justify-between"><h3 className="text-xs font-bold">Actives ({activeLayerIds.length})</h3><button onClick={clearLayers} className="text-[10px] font-semibold text-red-600">Tout retirer</button></div><div className="space-y-2">{activeLayerIds.map((id, index) => { const layer = flatLayers.find((item) => item.id === id); if (!layer) return null; const Icon = layer.icon; return <div key={id} className="rounded-xl border border-slate-200 p-3"><div className="flex items-center gap-2"><Icon size={16} style={{ color: layer.color }}/><span className="min-w-0 flex-1 text-xs font-semibold">{layer.label}</span><button onClick={() => removeLayer(id)} title="Retirer"><X size={14}/></button><button disabled={index === 0} onClick={() => setLayerOrder((current) => { const next = [...current]; const i = next.indexOf(id); if (i > 0) [next[i - 1], next[i]] = [next[i], next[i - 1]]; return next; })} title="Monter" className="disabled:opacity-30"><MoveUp size={14}/></button><button disabled={index === activeLayerIds.length - 1} onClick={() => setLayerOrder((current) => { const next = [...current]; const i = next.indexOf(id); if (i >= 0 && i < next.length - 1) [next[i], next[i + 1]] = [next[i + 1], next[i]]; return next; })} title="Descendre" className="disabled:opacity-30"><MoveDown size={14}/></button></div><label className="mt-3 block text-[10px] text-slate-500">Opacité de la couche : {opacity[id] ?? 75}%<input type="range" min="10" max="100" value={opacity[id] ?? 75} onChange={(e) => setOpacity((current) => ({ ...current, [id]: Number(e.target.value) }))} className="mt-1 w-full accent-green-600"/></label></div>; })}</div></section>}
             <section className="mt-5"><h3 className="mb-2 text-xs font-bold">Catalogue des couches</h3><div className="space-y-2">{filteredCategories.map((category) => { const CategoryIcon = category.icon; const isExpanded = !!expanded[category.id]; return <div key={category.id} className="overflow-hidden rounded-xl border border-slate-200"><button onClick={() => setExpanded((current) => ({ ...current, [category.id]: !current[category.id] }))} className="flex w-full items-center gap-3 px-3 py-3 text-left hover:bg-slate-50"><CategoryIcon size={17} className="text-slate-500"/><span className="flex-1 text-xs font-semibold">{category.label}<span className="ml-2 text-[10px] font-normal text-slate-400">{category.layers.filter((item) => activeLayers[item.id]).length} active(s)</span></span><ChevronDown size={15} className={`transition ${isExpanded ? "rotate-180" : ""}`}/></button>{isExpanded && <div className="border-t border-slate-100 p-2">{category.layers.map((layer) => { const Icon = layer.icon; const isActive = !!activeLayers[layer.id]; return <button key={layer.id} onClick={() => toggleLayer(layer.id)} className={`mb-1 flex w-full items-center gap-3 rounded-xl p-2.5 text-left ${isActive ? "bg-green-50" : "hover:bg-slate-50"}`}><Icon size={16} style={{ color: layer.color }}/><span className="min-w-0 flex-1"><span className="block text-[11px] font-semibold">{layer.label}</span><span className="mt-0.5 block text-[10px] leading-4 text-slate-500">{layer.description}</span></span><span className={`flex h-5 w-5 items-center justify-center rounded-md border ${isActive ? "border-green-600 bg-green-600 text-white" : "border-slate-300"}`}>{isActive && <Check size={12}/>}</span></button>; })}</div>}</div>; })}</div></section>
-            <p className="mt-4 rounded-xl bg-amber-50 p-3 text-[10px] leading-4 text-amber-800">Les couches du catalogue et leurs réglages sont préparés côté interface. Pour afficher les rasters, polygones et indicateurs réels, connecte leurs sources GeoJSON/tuiles à Leaflet (L.geoJSON, L.tileLayer).</p>
+            <p className="mt-4 rounded-xl bg-amber-50 p-3 text-[10px] leading-4 text-amber-800">Couches alimentées par l'API : « Régions » (indicateur choisi dans les filtres) et « Stations météo ». Les autres couches du catalogue sont préparées côté interface et restent à connecter.</p>
         </PanelFrame>}
 
         {/* Panneau Filtres */}
-        {panel === "filters" && <PanelFrame title="Filtres territoriaux" subtitle="Définis les données à analyser" icon={SlidersHorizontal} onClose={() => setPanel(null)}>
-            <label className="mb-4 block text-xs font-semibold">Région<select value={filterRegion} onChange={(e) => setFilterRegion(e.target.value)} className="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-normal"><option>Toutes les régions</option><option>Dakar</option><option>Kaolack</option><option>Kaffrine</option><option>Saint-Louis</option></select></label>
-            <label className="mb-4 block text-xs font-semibold">Culture<select value={filterCrop} onChange={(e) => setFilterCrop(e.target.value)} className="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-normal"><option>Toutes les cultures</option><option>Arachide</option><option>Mil</option><option>Riz</option><option>Maraîchage</option></select></label>
-            <label className="mb-4 block text-xs font-semibold">Année / période<select value={filterPeriod} onChange={(e) => setFilterPeriod(e.target.value)} className="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-normal">{["2026", "2025", "2024", "2020–2023", "2010–2019"].map((year) => <option key={year}>{year}</option>)}</select></label>
-            <div className="mt-5 flex gap-2"><button onClick={() => { setFilterRegion("Toutes les régions"); setFilterCrop("Toutes les cultures"); setFilterPeriod("2026"); setFilterApplied(false); }} className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold">Réinitialiser</button><button onClick={() => { setFilterApplied(true); setPanel(null); }} className="flex-1 rounded-xl bg-green-700 px-3 py-2.5 text-xs font-semibold text-white hover:bg-green-800">Appliquer les filtres</button></div>
-            {filterApplied && <p className="mt-3 text-[10px] text-green-700">Filtres sélectionnés : {filterRegion}, {filterCrop}, {filterPeriod}. À transmettre à l'API pour filtrer les données réelles.</p>}
+        {panel === "filters" && <PanelFrame title="Indicateur et filtres" subtitle="Données agrégées depuis l'API, par région" icon={SlidersHorizontal} onClose={() => setPanel(null)}>
+            <MapFilters filtres={filtres} onChange={setFiltres} carto={carto}/>
+            <button onClick={() => setFiltres(FILTRES_INITIAUX)} className="mt-5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold hover:bg-slate-50">Réinitialiser</button>
         </PanelFrame>}
 
         {/* Panneaux complémentaires */}
-        {panel === "analysis" && <PanelFrame title="Indicateurs territoriaux" subtitle="Aperçu de démonstration à remplacer par l'API" icon={BarChart3} onClose={() => setPanel(null)}><div className="grid grid-cols-2 gap-3">{[["Précipitations", "542 mm", CloudRain], ["Température", "29,4 °C", Thermometer], ["NDVI", "0,61", Satellite], ["Risque sécheresse", "Moyen", AlertTriangle]].map(([label, value, Icon]) => { const MetricIcon = Icon as typeof Layers; return <div key={label as string} className="rounded-xl border border-slate-200 bg-slate-50 p-3"><MetricIcon size={17} className="text-green-700"/><p className="mt-3 text-[10px] text-slate-500">{label as string}</p><p className="mt-1 text-sm font-bold">{value as string}</p></div>; })}</div><p className="mt-4 rounded-xl bg-slate-50 p-3 text-[10px] leading-4 text-slate-500">Les chiffres affichés sont des exemples de maquette, pas des mesures vérifiées en temps réel.</p></PanelFrame>}
-        {panel === "alerts" && <PanelFrame title="Risques et alertes" subtitle="Surveillance agroclimatique" icon={AlertTriangle} onClose={() => setPanel(null)}>{[["Sécheresse", "Moyen", "orange"], ["Inondation", "Faible", "green"], ["Stress thermique", "Élevé", "red"], ["Stress hydrique", "Moyen", "orange"]].map(([label, value, color]) => <div key={label} className="mb-2 flex items-center justify-between rounded-xl border border-slate-200 p-3"><span className="text-xs font-semibold">{label}</span><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${color === "red" ? "bg-red-50 text-red-700" : color === "orange" ? "bg-orange-50 text-orange-700" : "bg-green-50 text-green-700"}`}>{value}</span></div>)}<p className="mt-3 text-[10px] text-slate-500">Alertes fictives de démonstration, à connecter au service de surveillance.</p></PanelFrame>}
-        {panel === "history" && <PanelFrame title="Historique" subtitle="Comparaison temporelle des indicateurs" icon={Activity} onClose={() => setPanel(null)}><div className="grid grid-cols-3 gap-2">{["2024", "2025", "2026"].map((year) => <button key={year} onClick={() => setFilterPeriod(year)} className={`rounded-xl border p-3 text-xs font-bold ${filterPeriod === year ? "border-green-500 bg-green-50 text-green-700" : "border-slate-200"}`}>{year}</button>)}</div><div className="mt-4 rounded-xl border border-dashed border-slate-300 p-6 text-center text-xs text-slate-500">Graphiques historiques à connecter aux séries temporelles de l'API.</div></PanelFrame>}
+        {panel === "analysis" && <PanelFrame title="Classement des régions" subtitle={`${carto.indicateur.label}${carto.indicateur.unite ? ` (${carto.indicateur.unite})` : ""} · ${carto.annee ?? "—"}`} icon={BarChart3} onClose={() => setPanel(null)}>
+            {carto.statut.kind === "loading" ? <div role="status" className="space-y-2">{Array.from({ length: 8 }, (_, i) => <div key={i} className="h-7 animate-pulse rounded-lg bg-slate-100"/>)}</div> :
+                carto.statut.kind === "error" ? <p className="text-xs text-red-700">{carto.statut.message}</p> :
+                    <table className="w-full text-left text-[11px]">
+                        <thead><tr className="text-[9px] uppercase tracking-wide text-slate-400"><th className="py-1 font-medium">Région</th><th className="py-1 text-right font-medium">Valeur</th><th className="py-1 text-right font-medium">vs N-1</th></tr></thead>
+                        <tbody>{classement.map((r) => <tr key={r.cle} onClick={() => setSelection(r.cle)} className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 ${selection === r.cle ? "bg-green-50" : ""}`}>
+                            <td className="py-1.5"><span className="inline-flex items-center gap-2"><span className="h-2.5 w-4 rounded-sm border border-black/5" style={r.valeur === null ? STYLE_HACHURES : { backgroundColor: carto.echelle.couleur(r.valeur) ?? undefined }}/>{r.nom}</span></td>
+                            {r.valeur === null ? <td colSpan={2} className="py-1.5 text-right text-slate-400">Donnée non disponible</td> : <>
+                                <td className="py-1.5 text-right tabular-nums font-semibold">{formatValeur(carto.indicateur, r.valeur)}</td>
+                                <td className="py-1.5 text-right tabular-nums text-slate-600">{formatEvolution(carto.indicateur, r.evolution)}</td>
+                            </>}
+                        </tr>)}</tbody>
+                    </table>}
+        </PanelFrame>}
+        {panel === "alerts" && <PanelFrame title="Risques et alertes" subtitle="Surveillance agroclimatique" icon={AlertTriangle} onClose={() => setPanel(null)}><div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-xs text-slate-500">Bientôt disponible : les alertes seront alimentées par le service de surveillance.</div></PanelFrame>}
+        {panel === "history" && <PanelFrame title="Historique" subtitle="Année affichée sur la carte" icon={Activity} onClose={() => setPanel(null)}>
+            <div className="grid grid-cols-3 gap-2">{carto.options.annees.slice(0, 12).map((year) => {
+                const avecDonnees = carto.anneesIndicateur.includes(year);
+                return <button key={year} onClick={() => setFiltres((f) => ({ ...f, annee: year }))} title={avecDonnees ? undefined : "Pas de donnée pour cet indicateur"} className={`rounded-xl border p-3 text-xs font-bold ${carto.annee === year ? "border-green-500 bg-green-50 text-green-700" : avecDonnees ? "border-slate-200" : "border-slate-100 text-slate-300"}`}>{year}</button>;
+            })}</div>
+            {carto.statut.kind === "loading" && <p className="mt-3 text-[10px] text-slate-500">Chargement des années disponibles…</p>}
+        </PanelFrame>}
         {panel === "satellite" && <PanelFrame title="Fond cartographique" subtitle="Choisis le style de la carte" icon={Satellite} onClose={() => setPanel(null)}><div className="grid grid-cols-2 gap-3">{baseMaps.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => changeBaseMap(item.id)} className={`rounded-xl border p-4 ${baseMap === item.id ? "border-green-500 bg-green-50 text-green-700" : "border-slate-200 hover:bg-slate-50"}`}><Icon size={21} className="mx-auto"/><p className="mt-2 text-xs font-semibold">{item.label}</p></button>; })}</div><p className="mt-4 text-[10px] leading-4 text-slate-500">Fonds : CARTO / OpenStreetMap (Clair, Sombre), OpenTopoMap (Terrain) et Esri World Imagery (Satellite). Vérifie leurs conditions d'usage avant la mise en production.</p></PanelFrame>}
         {panel === "profile" && <PanelFrame title="Profil utilisateur" subtitle="Compte de démonstration" icon={UserRound} onClose={() => setPanel(null)}><p className="rounded-xl bg-slate-50 p-4 text-xs text-slate-600">L'espace de profil sera connecté au système d'authentification.</p></PanelFrame>}
         {panel === "settings" && <PanelFrame title="Paramètres" subtitle="Préférences de la carte" icon={Settings2} onClose={() => setPanel(null)}><button onClick={() => { setBaseMap(baseMap === "Sombre" ? "Clair" : "Sombre"); }} className="flex w-full items-center justify-between rounded-xl border border-slate-200 p-3 text-xs"><span>Basculer le thème de la carte</span><span className="font-semibold">{baseMap === "Sombre" ? "Sombre" : "Clair"}</span></button><p className="mt-3 text-[10px] text-slate-500">Les préférences persistantes seront ajoutées ultérieurement.</p></PanelFrame>}
         {panel === "notifications" && <PanelFrame title="Notifications" subtitle="Événements de la plateforme" icon={Bell} onClose={() => setPanel(null)}><div className="rounded-xl border border-slate-200 p-3"><p className="text-xs font-semibold">Aucune nouvelle notification</p><p className="mt-1 text-[10px] text-slate-500">Les alertes seront alimentées par les services de suivi terrain.</p></div></PanelFrame>}
         {panel === "more" && <PanelFrame title="À propos d'Assaman-Suuf" subtitle="Plateforme agroclimatique" icon={Sprout} onClose={() => setPanel(null)}><p className="text-xs leading-5 text-slate-600">Assaman-Suuf vise à réunir les données climatiques, agricoles, hydriques et territoriales pour soutenir la prise de décision au Sénégal.</p></PanelFrame>}
 
-        {/* Fiche zone sélectionnée */}
-        {selectedZone && <aside className="absolute right-4 top-24 z-20 w-[min(310px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/70 bg-white/95 shadow-2xl backdrop-blur-xl md:right-6"><header className="flex items-center justify-between border-b border-slate-100 p-3"><div><p className="text-[10px] uppercase tracking-wider text-slate-400">Zone sélectionnée</p><h2 className="text-sm font-bold">{selectedZone.name}</h2></div><button onClick={() => setSelectedZone(null)} aria-label="Fermer la fiche" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X size={16}/></button></header><div className="grid grid-cols-2 gap-2 p-3">{[["Précipitations", selectedZone.rainfall], ["Température", selectedZone.temperature], ["NDVI", selectedZone.ndvi], ["Culture", selectedZone.crop], ["Sécheresse", selectedZone.drought], ["Agriculture", selectedZone.agriculture]].map(([label, value]) => <div key={label} className="rounded-xl bg-slate-50 p-2.5"><p className="text-[9px] uppercase tracking-wide text-slate-400">{label}</p><p className="mt-1 text-[11px] font-semibold text-slate-800">{value}</p></div>)}</div><p className="px-3 pb-3 text-[9px] text-slate-400">Données illustratives — non issues de mesures en direct.</p></aside>}
+        {/* Fiche région sélectionnée */}
+        {selection && <RegionDetails cle={selection} carto={carto} onClose={() => setSelection(null)}/>}
     </section>;
 }

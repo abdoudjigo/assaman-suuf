@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Map as MapLibreMap, type ExpressionSpecification, type GeoJSONSource, type StyleSpecification } from "maplibre-gl";import "maplibre-gl/dist/maplibre-gl.css";
 import type { ZoneValues } from "./useZoneData";
+import { normaliserRegion as norm } from "../utils/regions";
 
 /*
  * Carte MapLibre pour le dashboard agro-climatique.
@@ -10,7 +11,6 @@ import type { ZoneValues } from "./useZoneData";
  */
 const GEOJSON_URL = "/data/senegal-adm1.geojson";
 const SRC = "zones";
-const norm = (s = "") => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
 /* Fonds de carte : à remplacer par MapTiler / vos tuiles en production (conditions d'usage des fournisseurs). */
 const BASES: Record<string, { tiles: string[]; attribution: string; maxzoom?: number }> = {
