@@ -12,6 +12,7 @@ from schemas.predictions import (
     PredictionOptions,
     PredictionRequest,
     PredictionResponse,
+    SimulationRequest,
 )
 from snowflake_client import get_snowflake_connection
 
@@ -25,12 +26,7 @@ router = APIRouter(
 )
 
 
-@router.get(
-    "/options",
-    response_model=PredictionOptions,
-    summary="Valeurs acceptées par le modèle",
-)
-def get_options() -> PredictionOptions:
+def _options() -> PredictionOptions:
     try:
         return PredictionOptions.model_validate(service_prediction.options())
     except FileNotFoundError as exc:
@@ -38,20 +34,8 @@ def get_options() -> PredictionOptions:
         raise HTTPException(status_code=503, detail="Modèle indisponible.") from exc
 
 
-@router.post(
-    "/rendement",
-    response_model=PredictionResponse,
-    summary="Estimer le rendement d'une campagne",
-    description=(
-        "Rendement (t/ha) et production (t) estimés. Le climat vient des "
-        "relevés GalsenAPI si la campagne est mesurée, sinon de la normale "
-        "de la région. Voir `avertissements` pour la fiabilité."
-    ),
-)
-def post_rendement(body: PredictionRequest) -> PredictionResponse:
-    # Route synchrone (def) : FastAPI l'exécute dans un thread, l'appel
-    # Snowflake bloquant ne gèle donc pas le serveur.
-    params = body.model_dump()
+def _predire(params: dict, route: str) -> PredictionResponse:
+    """Appel du modèle avec cache Redis ; erreurs métier → 422, modèle absent → 503."""
     cache_key = make_cache_key("predictions", params)
 
     cached = get_cached(cache_key)
@@ -68,7 +52,7 @@ def post_rendement(body: PredictionRequest) -> PredictionResponse:
         logger.exception("Modèle introuvable")
         raise HTTPException(status_code=503, detail="Modèle indisponible.") from exc
     except Exception as exc:
-        logger.exception("Erreur sur POST /api/v1/predictions/rendement")
+        logger.exception("Erreur sur POST %s", route)
         raise HTTPException(
             status_code=500, detail="Erreur lors de la prédiction."
         ) from exc
@@ -79,3 +63,52 @@ def post_rendement(body: PredictionRequest) -> PredictionResponse:
     if not any("indisponible" in a for a in response.avertissements):
         set_cached(cache_key, response.model_dump(mode="json"))
     return response
+
+
+@router.get(
+    "/options",
+    response_model=PredictionOptions,
+    summary="Valeurs acceptées par le modèle",
+)
+def get_options() -> PredictionOptions:
+    return _options()
+
+
+@router.post(
+    "/rendement",
+    response_model=PredictionResponse,
+    summary="Estimer le rendement d'une campagne",
+    description=(
+        "Rendement (t/ha) et production (t) estimés. Le climat vient des "
+        "relevés GalsenAPI si la campagne est mesurée, sinon de la normale "
+        "de la région. Voir `avertissements` pour la fiabilité."
+    ),
+)
+def post_rendement(body: PredictionRequest) -> PredictionResponse:
+    # Route synchrone (def) : FastAPI l'exécute dans un thread, l'appel
+    # Snowflake bloquant ne gèle donc pas le serveur.
+    return _predire(body.model_dump(), "/api/v1/predictions/rendement")
+
+
+@router.get(
+    "/simulation/options",
+    response_model=PredictionOptions,
+    summary="Valeurs acceptées pour la simulation",
+)
+def get_simulation_options() -> PredictionOptions:
+    return _options()
+
+
+@router.post(
+    "/simulation",
+    response_model=PredictionResponse,
+    summary="Simuler le rendement d'une campagne (scénario « et si… »)",
+    description=(
+        "Comme /rendement, avec `pluie_cumul_mm` et `tavg_moyenne` facultatifs. "
+        "Une pluie saisie remplace le climat observé (source "
+        "`saisie_utilisateur`) ; une valeur absente est complétée par le climat "
+        "observé, sinon par la normale de la région."
+    ),
+)
+def post_simulation(body: SimulationRequest) -> PredictionResponse:
+    return _predire(body.model_dump(), "/api/v1/predictions/simulation")

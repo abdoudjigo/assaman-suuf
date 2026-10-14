@@ -57,3 +57,50 @@ class AgroclimatResponse(BaseModel):
 
     data: list[AgroclimatItem]
     pagination: Pagination
+
+
+class AgroclimatAgregatItem(BaseModel):
+    """
+    Agrégat de campagnes pour une valeur de regroupement.
+
+    Les valeurs null sont ignorées (jamais comptées comme 0) et le rendement
+    est un ratio de sommes, calculé sur les campagnes ayant à la fois une
+    production et une superficie renseignées.
+    """
+
+    cle: str | int | None = None
+
+    nb_campagnes: int
+    production_t: float | None = None
+    superficie_ha: float | None = None
+
+    nb_campagnes_rendement: int
+    rendement_t_ha: float | None = None
+
+    nb_avec_climat: int
+    nb_climat_renseigne: int
+    couverture_climat_pct: float | None = None
+
+
+class AgroclimatAgregatResponse(BaseModel):
+    """Réponse de la route d'agrégats Agroclimat."""
+
+    group_by: str
+    data: list[AgroclimatAgregatItem]
+
+
+class AgroclimatNuagePoint(BaseModel):
+    """Une campagne avec climat : pluie cumulée et rendement."""
+
+    pluie_cumul_mm: float
+    rendement_t_ha: float
+    produit: str
+    region: str | None = None
+    annee: int | None = None
+
+
+class AgroclimatNuageResponse(BaseModel):
+    """Réponse de la route nuage de points Agroclimat."""
+
+    total: int
+    data: list[AgroclimatNuagePoint]

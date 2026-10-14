@@ -38,3 +38,19 @@ class ClimatResponse(BaseModel):
 
     data: list[ClimatItem]
     pagination: Pagination
+
+
+class ClimatAnnuelItem(BaseModel):
+    """Indicateurs climatiques annuels moyennés sur les stations."""
+
+    annee: int
+    pluie_cumul_mm: float | None = None
+    nb_stations_pluie: int
+    tavg_moyenne: float | None = None
+    nb_stations_temperature: int
+
+
+class ClimatAnnuelResponse(BaseModel):
+    """Réponse de la route Climat annuel."""
+
+    data: list[ClimatAnnuelItem]

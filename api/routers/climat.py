@@ -7,7 +7,7 @@ import math
 
 from fastapi import APIRouter, HTTPException, Query
 from redis_client import get_cached, make_cache_key, set_cached
-from schemas.climat import ClimatResponse
+from schemas.climat import ClimatAnnuelResponse, ClimatResponse
 from snowflake_client import get_snowflake_connection
 
 logger = logging.getLogger(__name__)
@@ -247,6 +247,127 @@ def get_climat(
         raise HTTPException(
             status_code=500,
             detail="Erreur lors de la récupération des données climatiques.",
+        ) from exc
+
+    finally:
+        if cursor is not None:
+            cursor.close()
+
+        if connection is not None:
+            connection.close()
+
+
+@router.get(
+    "/annuel",
+    response_model=ClimatAnnuelResponse,
+    summary="Indicateurs climatiques annuels",
+    description=(
+        "Pluie et température par année, moyennées sur les stations. "
+        "Pluie : cumul annuel des stations ayant leurs 12 mois renseignés "
+        "(un cumul partiel sous-estimerait la pluie). Température : moyenne "
+        "des mois renseignés par station. Les null sont ignorés."
+    ),
+)
+def get_climat_annuel(
+    region: str | None = Query(None, description="Filtrer sur la région."),
+    zone_key: str | None = Query(None, description="Filtrer sur une zone."),
+) -> ClimatAnnuelResponse:
+    """Retourne une ligne par année à partir de FCT_CLIMAT (station × mois)."""
+
+    filters = ["t.ANNEE IS NOT NULL", "c.STATION_KEY IS NOT NULL"]
+    params = []
+
+    if region is not None:
+        filters.append("UPPER(z.REGION) = UPPER(?)")
+        params.append(region)
+
+    if zone_key is not None:
+        filters.append("s.ZONE_KEY = ?")
+        params.append(zone_key)
+
+    where_clause = "WHERE " + " AND ".join(filters)
+
+    cache_key = make_cache_key(
+        "climat_annuel",
+        {"region": region, "zone_key": zone_key},
+    )
+
+    cached = get_cached(cache_key)
+
+    if cached is not None:
+        return ClimatAnnuelResponse.model_validate(cached)
+
+    sql = f"""
+        WITH station_annee AS (
+            SELECT
+                c.STATION_KEY,
+                t.ANNEE,
+                COUNT(DISTINCT IFF(c.PRCP_MM IS NOT NULL, t.MOIS, NULL)) AS NB_MOIS_PLUIE,
+                SUM(c.PRCP_MM) AS PLUIE,
+                AVG(c.TAVG) AS TAVG
+
+            FROM DATAFLOW360.MARTS.FCT_CLIMAT c
+
+            LEFT JOIN DATAFLOW360.MARTS.DIM_STATION s
+                ON c.STATION_KEY = s.STATION_KEY
+
+            LEFT JOIN DATAFLOW360.MARTS.DIM_ZONE z
+                ON s.ZONE_KEY = z.ZONE_KEY
+
+            LEFT JOIN DATAFLOW360.MARTS.DIM_TEMPS t
+                ON c.DATE_KEY = t.DATE_KEY
+
+            {where_clause}
+
+            GROUP BY c.STATION_KEY, t.ANNEE
+        )
+
+        SELECT
+            ANNEE,
+            AVG(IFF(NB_MOIS_PLUIE = 12, PLUIE, NULL)) AS PLUIE_CUMUL_MM,
+            COUNT_IF(NB_MOIS_PLUIE = 12) AS NB_STATIONS_PLUIE,
+            AVG(TAVG) AS TAVG_MOYENNE,
+            COUNT(TAVG) AS NB_STATIONS_TEMPERATURE
+
+        FROM station_annee
+
+        GROUP BY ANNEE
+
+        ORDER BY ANNEE
+    """
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_snowflake_connection()
+        cursor = connection.cursor()
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+
+        response = ClimatAnnuelResponse(
+            data=[
+                {
+                    "annee": row[0],
+                    "pluie_cumul_mm": None if row[1] is None else float(row[1]),
+                    "nb_stations_pluie": int(row[2] or 0),
+                    "tavg_moyenne": None if row[3] is None else float(row[3]),
+                    "nb_stations_temperature": int(row[4] or 0),
+                }
+                for row in rows
+            ]
+        )
+
+        set_cached(cache_key, response.model_dump(mode="json"))
+
+        return response
+
+    except Exception as exc:
+        logger.exception("Erreur sur GET /api/v1/climat/annuel")
+
+        raise HTTPException(
+            status_code=500,
+            detail="Erreur lors du calcul des indicateurs climatiques annuels.",
         ) from exc
 
     finally:

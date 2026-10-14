@@ -248,12 +248,18 @@ Lors d'un déploiement de production avec des domaines connus, les origines pour
 
 /api/v1/agriculture
 /api/v1/climat
+/api/v1/climat/annuel
 /api/v1/agroclimat
+/api/v1/agroclimat/agregats
+/api/v1/agroclimat/nuage
 /api/v1/zones
 /api/v1/stations
 /api/v1/produits
 
-/api/v1/predictions/rendement   (en pause)
+/api/v1/predictions/options
+/api/v1/predictions/rendement
+/api/v1/predictions/simulation/options
+/api/v1/predictions/simulation
 ```
 
 ### Health
@@ -546,6 +552,53 @@ FCT_AGROCLIMAT_CAMPAGNE
         v
 Campagne enrichie (pluie, températures, anomalies)
 ```
+
+### Agrégats pour le Dashboard
+
+Ces routes évitent au frontend de paginer ~10 000 campagnes pour les agréger.
+Règles métier appliquées côté Snowflake :
+
+- **Rendement = SUM(production_t) / SUM(superficie_ha)**, calculé uniquement sur les campagnes ayant les deux valeurs (jamais une moyenne des rendements) ;
+- **null ≠ 0** : les valeurs null sont ignorées ; un agrégat sans valeur renseignée vaut `null`.
+
+Filtres communs (insensibles à la casse) : `annee`, `region`, `produit`, `categorie`, `systeme_production`.
+
+```http
+GET /api/v1/agroclimat/agregats?group_by=annee&region=Kaolack
+```
+
+`group_by` : `total`, `annee`, `region`, `produit`, `categorie`, `systeme_production` (les groupes de clé null sont exclus).
+
+```json
+{
+  "group_by": "annee",
+  "data": [
+    {
+      "cle": 2010,
+      "nb_campagnes": 52,
+      "production_t": 154320.5,
+      "superficie_ha": 180200.0,
+      "nb_campagnes_rendement": 50,
+      "rendement_t_ha": 0.86,
+      "nb_avec_climat": 31,
+      "nb_climat_renseigne": 52,
+      "couverture_climat_pct": 59.6
+    }
+  ]
+}
+```
+
+```http
+GET /api/v1/agroclimat/nuage?limite=5000&annee=2015
+```
+
+Un point par campagne avec climat (`a_climat = true`) : `pluie_cumul_mm`, `rendement_t_ha` (production / superficie, sinon `RENDEMENT_T_HA`), `produit`, `region`, `annee`. Au-delà de `limite` (max 10 000), échantillon déterministe ; `total` donne le nombre de points éligibles.
+
+```http
+GET /api/v1/climat/annuel?region=Thiès
+```
+
+Une ligne par année depuis `FCT_CLIMAT` : `pluie_cumul_mm` (cumul annuel moyen des stations ayant leurs 12 mois renseignés), `tavg_moyenne` (moyenne des mois renseignés, puis des stations), `nb_stations_pluie`, `nb_stations_temperature`.
 
 ---
 
@@ -931,21 +984,35 @@ Le déploiement Kubernetes n'est **pas encore inclus** dans cette version de l'A
 
 ## 22. Prédiction de rendement
 
-La route suivante est prévue mais volontairement **en pause** :
+L'API ne calcule rien elle-même : elle appelle `ml.service_prediction` (modèle `ml/models/modele_rendement.pkl`, monté en lecture seule) et met les réponses en cache Redis.
 
 ```text
-POST /api/v1/predictions/rendement
+GET  /api/v1/predictions/options              valeurs acceptées (produit, region, saison, systeme_production)
+POST /api/v1/predictions/rendement            campagne : climat observé, sinon normale de la région
+GET  /api/v1/predictions/simulation/options   identique à /options
+POST /api/v1/predictions/simulation           idem + scénario « et si… » facultatif
 ```
 
-Elle dépendra du modèle ML réellement entraîné et de la liste exacte des features utilisées.
+**Corps de `/simulation` :**
 
-**Source ML :**
-
-```text
-DATAFLOW360.ML.ML_RENDEMENT_CAMPAGNE
+```json
+{
+  "produit": "Mil",
+  "region": "Kaolack",
+  "superficie_ha": 1000,
+  "annee": 2015,
+  "saison": "Principale",
+  "systeme_production": "Pluvial",
+  "pluie_cumul_mm": 450,
+  "tavg_moyenne": null
+}
 ```
 
-Le contrat de cette route sera défini lorsque le modèle sera prêt.
+`pluie_cumul_mm` (≥ 0) et `tavg_moyenne` sont facultatifs. Une pluie saisie prime sur le climat observé (`climat.source = "saisie_utilisateur"`, Snowflake n'est pas interrogé) ; une valeur absente est complétée par le climat observé (`observe`), sinon par la normale de la région (`normale_region`).
+
+**Réponse** (commune à `/rendement` et `/simulation`) : `rendement_t_ha`, `production_t`, `climat` (`source`, `pluie_cumul_mm`, `tavg_moyenne` — peut être `null` si aucune température n'est connue —, `pluie_normale_mm`, `station_utilisee`), `reperes` (`rendement_moyen_historique_t_ha`, `erreur_moyenne_test_t_ha`), `modele_version`, `avertissements` (année > 2015, culture peu fiable, région sans station, campagne non mesurée).
+
+**Erreurs :** `422` pour une valeur refusée par le modèle, avec le message en `detail` (ex. contre-saison hors Saint-Louis) ; `503` si le modèle est absent.
 
 ---
 
