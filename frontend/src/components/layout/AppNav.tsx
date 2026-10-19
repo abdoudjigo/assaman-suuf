@@ -8,7 +8,7 @@ const LINKS = [
     { to: "/supervision", label: "Supervision API", icon: Server },
 ];
 
-/* Menu principal partagé par les en-têtes des pages. Libellés masqués sur petit écran. */
+/* Menu principal partagé par les en-têtes des pages. */
 function AppNav({ className = "" }: { className?: string }) {
     return (
         <nav aria-label="Navigation principale" className={`flex items-center gap-1 ${className}`}>
@@ -24,7 +24,7 @@ function AppNav({ className = "" }: { className?: string }) {
                     }
                 >
                     <Icon size={16} />
-                    <span className="hidden xl:inline">{label}</span>
+                    <span className="hidden md:inline">{label}</span>
                 </NavLink>
             ))}
         </nav>
