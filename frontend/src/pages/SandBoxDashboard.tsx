@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "../services/dashboardApi";
 import {
     Activity,
     CheckCircle2,
@@ -18,9 +19,6 @@ import {
     XCircle,
 } from "lucide-react";
 
-const API_BASE_URL =
-    import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8001";
-
 const api = axios.create({
     baseURL: API_BASE_URL,
     timeout: 20000,
@@ -29,15 +27,29 @@ const api = axios.create({
     },
 });
 
-function SandBoxDashboard({ onToggle, initialPath = "/openapi.json" }) {
+type HistoryEntry = {
+    path: string;
+    method: string;
+    status: number | string;
+    duration: number;
+    time: string;
+    success: boolean;
+};
+
+type SandBoxDashboardProps = {
+    onToggle?: (open: boolean) => void;
+    initialPath?: string;
+};
+
+function SandBoxDashboard({ onToggle, initialPath = "/openapi.json" }: SandBoxDashboardProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [path, setPath] = useState(initialPath);
     const [method, setMethod] = useState("GET");
     const [loading, setLoading] = useState(false);
-    const [response, setResponse] = useState(null);
-    const [error, setError] = useState(null);
-    const [history, setHistory] = useState([]);
-    const [requestTime, setRequestTime] = useState(null);
+    const [response, setResponse] = useState<unknown>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [history, setHistory] = useState<HistoryEntry[]>([]);
+    const [requestTime, setRequestTime] = useState<number | null>(null);
 
     const togglePanel = () => {
         const next = !isOpen;
@@ -82,23 +94,28 @@ function SandBoxDashboard({ onToggle, initialPath = "/openapi.json" }) {
                 },
                 ...previous,
             ].slice(0, 8));
-        } catch (err) {
+        } catch (err: unknown) {
             const duration = Math.round(performance.now() - startedAt);
-
-            const message = err.response
-                ? `HTTP ${err.response.status}: ${
-                    typeof err.response.data?.detail === "string"
-                        ? err.response.data.detail
-                        : err.response.statusText || "Erreur API"
-                }`
-                : err.code === "ECONNABORTED"
+            const requestError = axios.isAxiosError(err) ? err : null;
+            const errorData = requestError?.response?.data;
+            const detail = typeof errorData === "object"
+                && errorData !== null
+                && "detail" in errorData
+                && typeof errorData.detail === "string"
+                ? errorData.detail
+                : requestError?.response?.statusText || "Erreur API";
+            const message = requestError?.response
+                ? `HTTP ${requestError.response.status}: ${detail}`
+                : requestError?.code === "ECONNABORTED"
                     ? "Délai d'attente dépassé."
-                    : "Connexion impossible. Vérifie FastAPI, l'URL et le CORS.";
+                    : err instanceof Error
+                        ? err.message
+                        : "Connexion impossible. Vérifie FastAPI, l'URL et le CORS.";
 
             setError(message);
 
-            if (err.response?.data !== undefined) {
-                setResponse(err.response.data);
+            if (requestError?.response?.data !== undefined) {
+                setResponse(requestError.response.data);
             }
 
             setRequestTime(duration);
@@ -107,7 +124,7 @@ function SandBoxDashboard({ onToggle, initialPath = "/openapi.json" }) {
                 {
                     path: normalizedPath,
                     method,
-                    status: err.response?.status || "Erreur",
+                    status: requestError?.response?.status ?? "Erreur",
                     duration,
                     time: new Date().toLocaleTimeString(),
                     success: false,

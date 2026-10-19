@@ -111,3 +111,52 @@ def test_valeurs_numeriques_controlees(champ, valeur):
         r = client.post(f"{URL}/rendement", json={**ENTREE, champ: valeur})
     assert r.status_code == 422
     predire.assert_not_called()
+
+
+# --- Simulation (scénario « et si… ») ---------------------------------------
+
+SCENARIO = {**ENTREE, "pluie_cumul_mm": 450.0, "tavg_moyenne": 29.5}
+
+
+def test_simulation_options_identiques_aux_options():
+    valeurs = {"produit": ["Mil"], "region": ["Kaolack"], "saison": ["Principale"], "systeme_production": ["Pluvial"]}
+    with patch("ml.service_prediction.options", return_value=valeurs):
+        assert client.get(f"{URL}/simulation/options").json() == valeurs
+
+
+def test_simulation_transmet_le_scenario(sans_redis):
+    with patch("ml.service_prediction.predire", return_value=REPONSE) as predire:
+        r = client.post(f"{URL}/simulation", json=SCENARIO)
+    assert r.status_code == 200
+    kwargs = predire.call_args.kwargs
+    assert kwargs["pluie_cumul_mm"] == 450.0 and kwargs["tavg_moyenne"] == 29.5
+
+
+def test_simulation_scenario_facultatif():
+    with patch("ml.service_prediction.predire", return_value=REPONSE) as predire:
+        assert client.post(f"{URL}/simulation", json=ENTREE).status_code == 200
+    kwargs = predire.call_args.kwargs
+    assert kwargs["pluie_cumul_mm"] is None and kwargs["tavg_moyenne"] is None
+
+
+def test_simulation_pluie_negative_refusee():
+    with patch("ml.service_prediction.predire") as predire:
+        r = client.post(f"{URL}/simulation", json={**ENTREE, "pluie_cumul_mm": -1})
+    assert r.status_code == 422
+    predire.assert_not_called()
+
+
+def test_simulation_valeur_inconnue_renvoie_le_message():
+    message = "Aucune donnée climatique historique pour la saison 'Contre-saison' à Kaolack : simulation impossible."
+    with patch("ml.service_prediction.predire", side_effect=ValueError(message)):
+        r = client.post(f"{URL}/simulation", json={**ENTREE, "saison": "Contre-saison"})
+    assert r.status_code == 422
+    assert r.json()["detail"] == message
+
+
+def test_temperature_absente_renvoyee_null():
+    reponse = {**REPONSE, "climat": {**REPONSE["climat"], "tavg_moyenne": None}}
+    with patch("ml.service_prediction.predire", return_value=reponse):
+        r = client.post(f"{URL}/simulation", json=ENTREE)
+    assert r.status_code == 200
+    assert r.json()["climat"]["tavg_moyenne"] is None

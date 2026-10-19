@@ -1,75 +1,123 @@
-# React + TypeScript + Vite
+# Assaman-Suuf — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Application React de la plateforme agroclimatique **DataFlow360** : cartographie, dashboard agroclimatique, prédiction du rendement et supervision de l'API FastAPI.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 1. Stack
 
-## React Compiler
+| Besoin | Outil |
+| --- | --- |
+| Framework | React 19 + TypeScript, Vite |
+| Routage | React Router 7 |
+| Données serveur & cache | TanStack Query (react-query) + axios |
+| Graphiques | Recharts |
+| Cartographie | Leaflet |
+| Styles | Tailwind CSS 4, icônes lucide-react |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Aucune autre dépendance : réutiliser celles-ci avant d'en ajouter une.
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 2. Lancer
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Prérequis : Node 22, et l'API FastAPI démarrée (voir [api/README.md](../api/README.md), port **8001**).
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+cd frontend
+cp .env.example .env     # puis ajuster si besoin
+npm install
+npm run dev              # http://localhost:5173
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+| Variable | Rôle |
+| --- | --- |
+| `VITE_API_BASE_URL` | URL de base de l'API. Par défaut en développement local : `http://127.0.0.1:8001`. La définir pour pointer vers l'API de l'environnement cible. |
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Autres commandes :
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm run lint      # ESLint
+npm run build     # tsc -b puis build Vite dans dist/
+npm run preview   # sert dist/
 ```
+
+---
+
+## 3. Pages
+
+Le menu commun ([AppNav.tsx](src/components/layout/AppNav.tsx)) relie les pages principales.
+
+| Route | Page | Données |
+| --- | --- | --- |
+| `/` | Accueil : carte + supervision API | — |
+| `/dashboard` | [Dashboard.tsx](src/pages/Dashboard.tsx) — agroclimat | `/api/v1/agroclimat/agregats`, `/agroclimat/nuage`, `/climat/annuel`, `/zones`, `/produits` |
+| `/prediction` | [Prediction.tsx](src/pages/Prediction.tsx) — rendement & prédiction | `/api/v1/predictions/simulation/options`, `/predictions/simulation`, `/agroclimat/agregats` |
+| `/cartographie` | [DashboardMap.tsx](src/pages/DashboardMap.tsx) — carte Leaflet | données de démonstration |
+| `/supervision` | [DashboardApiRun.tsx](src/pages/DashboardApiRun.tsx) — console de l'API | toutes les routes |
+
+### Dashboard (`/dashboard`)
+
+- **Filtres** : année, région, catégorie, culture, système de production.
+- **KPI** : production (t), superficie (ha), rendement (t/ha), évolution de la production par rapport à N-1, couverture climatique.
+- **Graphiques** : production et rendement par année ; production et rendement par culture ; classement des régions ; pluie et température par année ; nuage pluie cumulée × rendement par culture.
+
+### Prédiction (`/prediction`)
+
+- **Formulaire** : culture, région, superficie (> 0), année, saison, système de production. Pluie et température sont facultatives (scénario « et si… »).
+- **Résultat** : rendement, production, climat utilisé avec sa source, pluie normale, repères et version du modèle.
+- **Avertissements** affichés en évidence. Une erreur 422 (ex. contre-saison hors Saint-Louis) affiche le message de l'API.
+- **Courbe de scénarios** : rendement prédit pour une pluie de 200 à 1 000 mm, par pas de 50 mm (17 appels). Seule la pluie varie, la température reste celle de la simulation.
+- **Rendement observé** : rendements réels par année pour la région × culture, comparés à la prédiction et à la moyenne historique.
+
+---
+
+## 4. Règles métier (à respecter dans tout nouvel écran)
+
+- **Rendement = Σ production / Σ superficie**, jamais une moyenne de rendements. Le calcul est fait côté API (Snowflake), sur les campagnes ayant les deux valeurs.
+- **null ≠ 0** : une valeur manquante est ignorée et affichée « — », jamais remplacée par 0. Les courbes laissent un trou (`connectNulls={false}`).
+- **Couverture climatique** : seules ~59 % des campagnes ont des données climat. Elle est affichée à côté de toute analyse pluie × rendement.
+- **Pas de causalité** : un nuage de points pluie × rendement montre une association, et la page le précise.
+- **Pas de graphique à deux axes Y** : deux mesures d'unités différentes vont dans deux graphiques.
+
+---
+
+## 5. Structure
+
+```text
+src/
+├── main.tsx                     QueryClientProvider (react-query) + App
+├── routes/AppRoutes.tsx         routes
+├── pages/                       une page par route (+ composants historiques de la carte)
+├── components/
+│   ├── layout/
+│   │   ├── AppNav.tsx           menu principal
+│   │   └── PageHeader.tsx       en-tête commun (identité, menu, actions)
+│   └── dashboard/
+│       └── DashboardBlocks.tsx  ChartCard (états chargement/erreur/vide), KpiCard,
+│                                FilterBar, FilterSelect, NumberField
+├── hooks/
+│   ├── useDashboardData.ts      agrégats, nuage, climat annuel, zones, produits
+│   └── usePrediction.ts         options, simulation, courbe de scénarios
+├── services/
+│   ├── dashboardApi.ts          client axios des routes du Dashboard
+│   └── prediction/
+│       └── predictionClient.ts  client des routes de simulation (erreurs → PredictionError)
+├── types/prediction.ts          types des requêtes/réponses de simulation
+└── utils/agroAggregates.ts      filtres, variation %, formatage fr-FR
+```
+
+### Conventions
+
+- **Appels API** : toujours via un hook react-query (`hooks/`) qui s'appuie sur un service (`services/`), jamais `fetch` dans un composant.
+- **Cache** : 1 h par combinaison de filtres. Pendant un changement de filtre, l'ancien résultat reste affiché, grisé.
+- **États** : chaque bloc gère ses propres états chargement, erreur (avec « Réessayer ») et vide, via `ChartCard` / `KpiCard`.
+- **Textes et formats** : en français ; nombres formatés avec `fmt` (fr-FR).
+- **Styles** : `index.css` impose `button, input, select { font: inherit }` en dehors des couches Tailwind, ce qui annule `text-xs`/`text-sm` posés sur ces éléments. Mettre la taille sur un parent ou sur un `<span>` à l'intérieur.
+
+---
+
+## 6. Points connus
+
+- **Docker de dev** : `VITE_API_BASE_URL` doit pointer vers l'adresse de l'API accessible depuis le navigateur (par défaut `http://localhost:8001`).
+- **Cartographie** : les indicateurs de la carte sont encore des données de démonstration.

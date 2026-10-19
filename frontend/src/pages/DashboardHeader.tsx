@@ -1,4 +1,4 @@
-import {Search,Bell,Settings,UserRound,Sprout} from "lucide-react"
+import {Search,Bell,Settings,UserRound} from "lucide-react"
 
 /*
 |--------------------------------------------------------------------------
@@ -7,33 +7,7 @@ import {Search,Bell,Settings,UserRound,Sprout} from "lucide-react"
 */
 
 
-const DashBoardHeaderIcon= ()=>{
-
-    return(
-        <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-600 text-white shadow-sm">
-                <Sprout size={21} />
-            </div>
-
-            <div className="hidden sm:block">
-                <h1 className="text-base font-bold text-slate-900">
-                    Assaman-Suuf
-                </h1>
-                <p className="text-[11px] text-slate-500">
-                    Intelligence agro-climatique
-                </p>
-            </div>
-        </div>
-    )
-
-}
-
-const DashBoardHeaderSearchButton=()=>{
-    return (
-        <></>
-    )
-}
-function DashboardHeader({ onOpenSearch }) {
+function DashboardHeader({ onOpenSearch }: { onOpenSearch: () => void }) {
     return (
         <header className="absolute left-0 right-0 top-0 z-40 border-b border-white/70 bg-white/90 backdrop-blur-xl">
             <div className="flex h-16 items-center gap-3 px-4 md:px-6">

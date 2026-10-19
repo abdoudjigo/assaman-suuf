@@ -1,6 +1,5 @@
 import {
     AlertTriangle,
-    CloudRain,
     Info,
     ShieldAlert,
     ThermometerSun,

@@ -1,4 +1,6 @@
 import { X } from "lucide-react";
+import type { ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 
 /*
 |--------------------------------------------------------------------------
@@ -11,6 +13,11 @@ function PanelShellHeader({
     subtitle,
     icon: Icon,
     onClose,
+}: {
+    title: string;
+    subtitle: string;
+    icon: LucideIcon;
+    onClose: () => void;
 }) {
     return (
         <div className="flex shrink-0 items-center gap-3 border-b border-slate-100 px-4 py-4">
@@ -53,6 +60,13 @@ function PanelShell({
     onClose,
     children,
     width = "w-[400px]",
+}: {
+    title: string;
+    subtitle: string;
+    icon: LucideIcon;
+    onClose: () => void;
+    children: ReactNode;
+    width?: string;
 }) {
     return (
         <aside

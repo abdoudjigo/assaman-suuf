@@ -1,4 +1,6 @@
 import {MapIcon,Filter,BarChart3,AlertTriangle,Activity,Satellite,Layers} from "lucide-react";
+import type { Dispatch, SetStateAction } from "react";
+import type { LucideIcon } from "lucide-react";
 
 /*
 |--------------------------------------------------------------------------
@@ -6,12 +8,18 @@ import {MapIcon,Filter,BarChart3,AlertTriangle,Activity,Satellite,Layers} from "
 |--------------------------------------------------------------------------
 */
 
+type NavigationView = "map" | "filters" | "analysis" | "risks" | "history" | "satellite" | "layers";
+
 function BottomNavigation({
                               activeView,
                               setActiveView,
                               activeLayerCount,
+                          }: {
+                              activeView: NavigationView | null;
+                              setActiveView: Dispatch<SetStateAction<NavigationView | null>>;
+                              activeLayerCount: number;
                           }) {
-    const items = [
+    const items: { id: NavigationView; label: string; icon: LucideIcon; badge?: number }[] = [
         {
             id: "map",
             label: "Carte",
@@ -76,7 +84,7 @@ function BottomNavigation({
               {item.label}
             </span>
 
-                        {item.badge > 0 && (
+                        {item.badge !== undefined && item.badge > 0 && (
                             <span
                                 className={`absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[8px] font-bold ${
                                     active

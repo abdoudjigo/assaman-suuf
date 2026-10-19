@@ -5,15 +5,23 @@
 */
 
 
-import {useState} from "react";
-import {ChevronUp,ChevronDown,Check} from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Check, ChevronDown, ChevronUp } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+type FilterSectionProps = {
+    title: string;
+    icon: LucideIcon;
+    children: ReactNode;
+    defaultOpen?: boolean;
+};
 
 export function FilterSection({
                            title,
                            icon: Icon,
                            children,
                            defaultOpen = false,
-                       }) {
+                       }: FilterSectionProps) {
     const [open, setOpen] = useState(defaultOpen);
 
     return (
@@ -44,7 +52,7 @@ export function FilterSection({
     );
 }
 
-export function SectionTitle({ icon: Icon, title }) {
+export function SectionTitle({ icon: Icon, title }: { icon: LucideIcon; title: string }) {
     return (
         <div className="mb-2 flex items-center gap-2">
             <Icon size={15} className="text-slate-500" />
@@ -60,6 +68,11 @@ export function InputField({
                         value,
                         onChange,
                         type = "text",
+                    }: {
+                        label: string;
+                        value: string;
+                        onChange: (value: string) => void;
+                        type?: React.HTMLInputTypeAttribute;
                     }) {
     return (
         <label className="block">
@@ -84,6 +97,11 @@ export function SelectField({
                          value,
                          onChange,
                          options,
+                     }: {
+                         label: string;
+                         value: string;
+                         onChange: (value: string) => void;
+                         options: string[];
                      }) {
     return (
         <label className="block">
@@ -114,6 +132,10 @@ export function CheckOption({
                          label,
                          checked,
                          onChange,
+                     }: {
+                         label: string;
+                         checked: boolean;
+                         onChange: () => void;
                      }) {
     return (
         <button
@@ -140,4 +162,3 @@ export function CheckOption({
         </button>
     );
 }
-

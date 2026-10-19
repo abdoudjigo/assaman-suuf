@@ -16,12 +16,23 @@ class PredictionRequest(BaseModel):
     systeme_production: str = "Pluvial"
 
 
+class SimulationRequest(PredictionRequest):
+    """Campagne à estimer avec un scénario climatique facultatif (« et si… »).
+
+    Une valeur absente est complétée par le climat observé, sinon la normale.
+    """
+
+    pluie_cumul_mm: float | None = Field(None, ge=0, examples=[450])
+    tavg_moyenne: float | None = Field(None, examples=[29.0])
+
+
 class ClimatUtilise(BaseModel):
     """Climat utilisé pour la prédiction."""
 
-    source: str  # observe | normale_region
+    source: str  # saisie_utilisateur | observe | normale_region
     pluie_cumul_mm: float
-    tavg_moyenne: float
+    # None si aucune température n'est connue (ex. normale de Thies absente).
+    tavg_moyenne: float | None
     pluie_normale_mm: float
     station_utilisee: str
 

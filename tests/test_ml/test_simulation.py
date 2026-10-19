@@ -89,3 +89,18 @@ def test_saisie_invalide_refusee(modele_entraine, parametres):
 def test_rendement_jamais_negatif(modele_entraine):
     r = simulation.simuler("Mil", "Kaolack", 10, 2027, pluie_cumul_mm=0)
     assert r["rendement_t_ha"] >= 0
+
+
+def test_predire_scenario_ne_lit_pas_snowflake(modele_entraine):
+    from unittest.mock import MagicMock
+
+    from ml import service_prediction
+
+    ouvrir = MagicMock()
+    r = service_prediction.predire(
+        "Mil", "Kaolack", 10, 2012, pluie_cumul_mm=300, ouvrir_connexion=ouvrir
+    )
+    ouvrir.assert_not_called()
+    assert r["climat"]["source"] == "saisie_utilisateur"
+    assert r["climat"]["pluie_cumul_mm"] == 300.0
+    assert not any("non (entièrement) mesurée" in a for a in r["avertissements"])
