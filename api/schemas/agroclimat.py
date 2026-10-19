@@ -89,6 +89,33 @@ class AgroclimatAgregatResponse(BaseModel):
     data: list[AgroclimatAgregatItem]
 
 
+class AgroclimatCarteItem(BaseModel):
+    """Agrégat de campagnes par région et année pour la carte."""
+
+    region: str | None = None
+    annee: int
+    nb_campagnes: int
+    production_t: float | None = None
+    superficie_ha: float | None = None
+    nb_campagnes_rendement: int
+    rendement_t_ha: float | None = None
+    nb_avec_climat: int
+    nb_climat_renseigne: int
+
+
+class AgroclimatCarteResponse(BaseModel):
+    """Agrégats légers utilisés par la carte au lieu des campagnes brutes."""
+
+    data: list[AgroclimatCarteItem]
+
+
+class AgroclimatOptionsCarteResponse(BaseModel):
+    """Valeurs des filtres disponibles sur la carte."""
+
+    produits: list[str]
+    systemes: list[str]
+
+
 class AgroclimatNuagePoint(BaseModel):
     """Une campagne avec climat : pluie cumulée et rendement."""
 

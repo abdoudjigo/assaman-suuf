@@ -4,6 +4,8 @@ import {
     fetchAllPages,
     fetchClimatAnnuel,
     fetchNuage,
+    retryApiDelay,
+    retryApiRequest,
     type GroupBy,
     type ProduitItem,
     type ZoneItem,
@@ -13,7 +15,13 @@ import type { DashboardFilters } from "../utils/agroAggregates";
 /* Les données changent au rythme des pipelines (quotidien) : chaque
  * combinaison de filtres est mise en cache pour la session. Pendant un
  * changement de filtre, l'ancien résultat reste affiché (placeholderData). */
-const CACHE = { staleTime: 60 * 60_000, gcTime: 2 * 60 * 60_000, retry: 1, placeholderData: keepPreviousData } as const;
+const CACHE = {
+    staleTime: 60 * 60_000,
+    gcTime: 2 * 60 * 60_000,
+    retry: retryApiRequest,
+    retryDelay: retryApiDelay,
+    placeholderData: keepPreviousData,
+} as const;
 
 export const useAgregats = (groupBy: GroupBy, filters: DashboardFilters) =>
     useQuery({

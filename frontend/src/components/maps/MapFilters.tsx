@@ -57,6 +57,7 @@ export default function MapFilters({ filtres, onChange, carto }: { filtres: Cart
                 <FilterSelect label="Année" value={filtres.annee} options={carto.options.annees} allLabel={`Dernière disponible${carto.annee !== null && filtres.annee === null ? ` (${carto.annee})` : ""}`} onChange={(v) => set("annee", v)} disabled={chargement}/>
                 <FilterSelect label="Culture" value={filtres.produit} options={carto.options.produits} allLabel="Toutes" onChange={(v) => set("produit", v)} disabled={chargement || climatique}/>
                 <FilterSelect label="Système de production" value={filtres.systeme} options={carto.options.systemes} allLabel="Tous" onChange={(v) => set("systeme", v)} disabled={chargement || climatique}/>
+                {carto.statutOptions.kind === "error" && <p role="alert" className="text-[10px] text-red-700">{carto.statutOptions.message} <button type="button" onClick={carto.statutOptions.onRetry} className="font-semibold underline">Réessayer</button></p>}
                 {climatique && <p className="text-[10px] leading-4 text-slate-500">Les indicateurs climatiques viennent des stations : la culture et le système de production ne s'y appliquent pas.</p>}
                 {filtres.annee !== null && !carto.anneesIndicateur.includes(filtres.annee) && !chargement && (
                     <p className="rounded-lg bg-slate-50 p-2 text-[10px] leading-4 text-slate-500">Aucune donnée « {carto.indicateur.label} » en {filtres.annee} : les régions sont grisées.</p>

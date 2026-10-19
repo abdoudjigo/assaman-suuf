@@ -251,8 +251,11 @@ Lors d'un déploiement de production avec des domaines connus, les origines pour
 /api/v1/agriculture
 /api/v1/climat
 /api/v1/climat/annuel
+/api/v1/climat/annuel/regions
 /api/v1/agroclimat
 /api/v1/agroclimat/agregats
+/api/v1/agroclimat/carte
+/api/v1/agroclimat/options-carte
 /api/v1/agroclimat/nuage
 /api/v1/zones
 /api/v1/stations
@@ -263,6 +266,10 @@ Lors d'un déploiement de production avec des domaines connus, les origines pour
 /api/v1/predictions/simulation/options
 /api/v1/predictions/simulation
 ```
+
+Les routes `/api/v1/agroclimat/carte`, `/api/v1/agroclimat/options-carte` et
+`/api/v1/climat/annuel/regions` fournissent les agrégats et options ciblés de la
+carte, afin d'éviter le téléchargement intégral de toutes les pages brutes.
 
 ### Health
 

@@ -53,7 +53,7 @@ const uniqueSorted = <T extends string | number>(values: (T | null | undefined)[
         typeof a === "number" && typeof b === "number" ? b - a : String(a).localeCompare(String(b), "fr")
     );
 
-function statusOf(query: UseQueryResult<unknown>, isEmpty: boolean, emptyMessage?: string): BlockStatus {
+function statusOf<TData, TError>(query: UseQueryResult<TData, TError>, isEmpty: boolean, emptyMessage?: string): BlockStatus {
     if (query.isPending) return { kind: "loading" };
     if (query.isError) return { kind: "error", message: getApiErrorMessage(query.error), onRetry: () => query.refetch() };
     if (isEmpty) return { kind: "empty", message: emptyMessage };

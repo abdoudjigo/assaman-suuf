@@ -10,7 +10,7 @@
      renseignés (même règle que /api/v1/climat/annuel).
    ========================================================= */
 
-import type { CampagneItem, ClimatItem } from "../services/dashboardApi";
+import type { CampagneCarteItem, CampagneItem, ClimatCarteItem, ClimatItem } from "../services/dashboardApi";
 import { getIndicateur, type Indicateur, type IndicateurId } from "../config/mapIndicators";
 import { fmt, isNum, pctChange } from "./agroAggregates";
 import { CLES_REGIONS, estRegionConnue, nomRegion, normaliserRegion, REGIONS_SANS_STATION } from "./regions";
@@ -78,6 +78,30 @@ export function indexerCampagnes(rows: CampagneItem[], produit: string | null, s
     return { index, nonApparies };
 }
 
+export function indexerCampagnesCarte(rows: CampagneCarteItem[]) {
+    const index: IndexRegionAnnee<AccCampagnes> = new Map();
+    const nonApparies = new Set<string>();
+    for (const row of rows) {
+        const cle = normaliserRegion(row.region);
+        if (!estRegionConnue(cle)) {
+            nonApparies.add(row.region ?? "(région nulle)");
+            continue;
+        }
+        const acc = getOuCree(index, cle, row.annee, accVide);
+        acc.nb = row.nb_campagnes;
+        acc.production = row.production_t ?? 0;
+        acc.nbProduction = row.production_t === null ? 0 : 1;
+        acc.superficie = row.superficie_ha ?? 0;
+        acc.nbSuperficie = row.superficie_ha === null ? 0 : 1;
+        acc.productionPaire = row.rendement_t_ha ?? 0;
+        acc.superficiePaire = row.rendement_t_ha === null ? 0 : 1;
+        acc.nbPaire = row.nb_campagnes_rendement;
+        acc.avecClimat = row.nb_avec_climat;
+        acc.climatRenseigne = row.nb_climat_renseigne;
+    }
+    return { index, nonApparies };
+}
+
 /* ---------- Climat : région × année ---------- */
 
 export type ClimatRegionAnnee = {
@@ -127,6 +151,37 @@ export function indexerClimat(rows: ClimatItem[]) {
         }
         index.set(region, out);
         if (pluies.length) normalePluie.set(region, pluies.reduce((x, y) => x + y, 0) / pluies.length);
+    }
+    return { index, normalePluie, nonApparies };
+}
+
+export function indexerClimatCarte(rows: ClimatCarteItem[]) {
+    const index: IndexRegionAnnee<ClimatRegionAnnee> = new Map();
+    const normalePluie = new Map<string, number>();
+    const nonApparies = new Set<string>();
+    const pluiesParRegion = new Map<string, number[]>();
+    for (const row of rows) {
+        const cle = normaliserRegion(row.region);
+        if (!estRegionConnue(cle)) {
+            nonApparies.add(row.region ?? "(région nulle)");
+            continue;
+        }
+        const parAnnee = index.get(cle) ?? new Map<number, ClimatRegionAnnee>();
+        parAnnee.set(row.annee, {
+            pluie: row.pluie_cumul_mm,
+            nbStationsPluie: row.nb_stations_pluie,
+            temperature: row.tavg_moyenne,
+            nbStationsTemperature: row.nb_stations_temperature,
+        });
+        index.set(cle, parAnnee);
+        if (row.pluie_cumul_mm !== null) {
+            const values = pluiesParRegion.get(cle) ?? [];
+            values.push(row.pluie_cumul_mm);
+            pluiesParRegion.set(cle, values);
+        }
+    }
+    for (const [region, values] of pluiesParRegion) {
+        normalePluie.set(region, values.reduce((sum, value) => sum + value, 0) / values.length);
     }
     return { index, normalePluie, nonApparies };
 }

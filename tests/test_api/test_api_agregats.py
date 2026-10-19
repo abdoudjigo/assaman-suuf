@@ -89,6 +89,45 @@ def test_agregats_group_by_inconnu_refuse():
     assert r.status_code == 422
 
 
+def test_agroclimat_carte_retourne_agregats_par_region_annee():
+    connection, cursor = snowflake(
+        [("Kaolack", 2020, 3, 500.0, 250.0, 2, 2.0, 2, 3)]
+    )
+    with patch("routers.agroclimat.get_snowflake_connection", return_value=connection):
+        r = client.get(
+            "/api/v1/agroclimat/carte",
+            params={"produit": "Mil", "systeme_production": "Pluvial"},
+        )
+
+    assert r.status_code == 200
+    assert r.json()["data"][0] == {
+        "region": "Kaolack",
+        "annee": 2020,
+        "nb_campagnes": 3,
+        "production_t": 500.0,
+        "superficie_ha": 250.0,
+        "nb_campagnes_rendement": 2,
+        "rendement_t_ha": 2.0,
+        "nb_avec_climat": 2,
+        "nb_climat_renseigne": 3,
+    }
+    sql, params = cursor.execute.call_args.args
+    assert "GROUP BY z.REGION, a.ANNEE" in sql
+    assert params == ["Mil", "Pluvial"]
+
+
+def test_agroclimat_options_carte_sont_uniques():
+    connection, _ = snowflake([("Mil", "Pluvial"), ("Riz", "Irrigué"), ("Mil", "Pluvial")])
+    with patch("routers.agroclimat.get_snowflake_connection", return_value=connection):
+        r = client.get("/api/v1/agroclimat/options-carte")
+
+    assert r.status_code == 200
+    assert r.json() == {
+        "produits": ["Mil", "Riz"],
+        "systemes": ["Irrigué", "Pluvial"],
+    }
+
+
 def test_nuage_points_et_total():
     connection, cursor = snowflake(
         [(500.0, 1.2, "Mil", "Kaolack", 2020, 2), (650.0, 0.9, "Arachide", None, 2021, 2)]
@@ -127,6 +166,27 @@ def test_climat_annuel():
     sql, params = cursor.execute.call_args.args
     assert "NB_MOIS_PLUIE = 12" in sql
     assert params == ["Thiès"]
+
+
+def test_climat_annuel_par_region():
+    connection, cursor = snowflake(
+        [("Kaolack", 2020, 612.5, 8, 28.4, 9)]
+    )
+    with patch("routers.climat.get_snowflake_connection", return_value=connection):
+        r = client.get("/api/v1/climat/annuel/regions")
+
+    assert r.status_code == 200
+    assert r.json()["data"][0] == {
+        "region": "Kaolack",
+        "annee": 2020,
+        "pluie_cumul_mm": 612.5,
+        "nb_stations_pluie": 8,
+        "tavg_moyenne": 28.4,
+        "nb_stations_temperature": 9,
+    }
+    sql, params = cursor.execute.call_args.args
+    assert "GROUP BY REGION, ANNEE" in sql
+    assert params == []
 
 
 def test_erreur_snowflake_renvoie_500():

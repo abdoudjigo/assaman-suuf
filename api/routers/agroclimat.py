@@ -10,6 +10,8 @@ from fastapi import APIRouter, HTTPException, Query
 from redis_client import get_cached, make_cache_key, set_cached
 from schemas.agroclimat import (
     AgroclimatAgregatResponse,
+    AgroclimatCarteResponse,
+    AgroclimatOptionsCarteResponse,
     AgroclimatNuageResponse,
     AgroclimatResponse,
 )
@@ -348,6 +350,109 @@ def _fetch_all(sql: str, params: list) -> list[tuple]:
 
         if connection is not None:
             connection.close()
+
+
+@router.get(
+    "/carte",
+    response_model=AgroclimatCarteResponse,
+    summary="Agrégats agroclimatiques par région et année",
+)
+def get_agroclimat_carte(
+    produit: str | None = Query(None, description="Filtrer sur la culture."),
+    systeme_production: str | None = Query(
+        None, description="Filtrer sur le système de production."
+    ),
+) -> AgroclimatCarteResponse:
+    """Fournit les seules statistiques nécessaires à la carte."""
+    filters, params = _dashboard_filters(None, None, produit, None, systeme_production)
+    filters.append("a.ANNEE IS NOT NULL")
+    where_clause = "WHERE " + " AND ".join(filters)
+    cache_key = make_cache_key(
+        "agroclimat_carte",
+        {"produit": produit, "systeme_production": systeme_production},
+    )
+    cached = get_cached(cache_key)
+    if cached is not None:
+        return AgroclimatCarteResponse.model_validate(cached)
+
+    sql = f"""
+        SELECT
+            z.REGION,
+            a.ANNEE,
+            COUNT(*) AS NB_CAMPAGNES,
+            SUM(a.PRODUCTION_T) AS PRODUCTION_T,
+            SUM(a.SUPERFICIE_HA) AS SUPERFICIE_HA,
+            COUNT_IF({PAIRE}) AS NB_CAMPAGNES_RENDEMENT,
+            SUM(IFF({PAIRE}, a.PRODUCTION_T, NULL))
+                / NULLIF(SUM(IFF({PAIRE}, a.SUPERFICIE_HA, NULL)), 0)
+                AS RENDEMENT_T_HA,
+            COUNT_IF(a.A_CLIMAT) AS NB_AVEC_CLIMAT,
+            COUNT(a.A_CLIMAT) AS NB_CLIMAT_RENSEIGNE
+        {FROM_AGROCLIMAT}
+        {where_clause}
+        GROUP BY z.REGION, a.ANNEE
+        ORDER BY a.ANNEE, z.REGION
+    """
+    try:
+        rows = _fetch_all(sql, params)
+    except Exception as exc:
+        logger.exception("Erreur sur GET /api/v1/agroclimat/carte")
+        raise HTTPException(
+            status_code=500,
+            detail="Erreur lors du calcul des agrégats agroclimatiques de la carte.",
+        ) from exc
+
+    response = AgroclimatCarteResponse(
+        data=[
+            {
+                "region": row[0],
+                "annee": int(row[1]),
+                "nb_campagnes": int(row[2] or 0),
+                "production_t": _to_float(row[3]),
+                "superficie_ha": _to_float(row[4]),
+                "nb_campagnes_rendement": int(row[5] or 0),
+                "rendement_t_ha": _to_float(row[6]),
+                "nb_avec_climat": int(row[7] or 0),
+                "nb_climat_renseigne": int(row[8] or 0),
+            }
+            for row in rows
+        ]
+    )
+    set_cached(cache_key, response.model_dump(mode="json"))
+    return response
+
+
+@router.get(
+    "/options-carte",
+    response_model=AgroclimatOptionsCarteResponse,
+    summary="Options de filtres de la carte",
+)
+def get_agroclimat_options_carte() -> AgroclimatOptionsCarteResponse:
+    cache_key = make_cache_key("agroclimat_options_carte", {})
+    cached = get_cached(cache_key)
+    if cached is not None:
+        return AgroclimatOptionsCarteResponse.model_validate(cached)
+
+    sql = f"""
+        SELECT DISTINCT p.PRODUIT, a.SYSTEME_PRODUCTION
+        {FROM_AGROCLIMAT}
+        WHERE p.PRODUIT IS NOT NULL OR a.SYSTEME_PRODUCTION IS NOT NULL
+    """
+    try:
+        rows = _fetch_all(sql, [])
+    except Exception as exc:
+        logger.exception("Erreur sur GET /api/v1/agroclimat/options-carte")
+        raise HTTPException(
+            status_code=500,
+            detail="Erreur lors du chargement des filtres agroclimatiques.",
+        ) from exc
+
+    response = AgroclimatOptionsCarteResponse(
+        produits=sorted({row[0] for row in rows if row[0]}),
+        systemes=sorted({row[1] for row in rows if row[1]}),
+    )
+    set_cached(cache_key, response.model_dump(mode="json"))
+    return response
 
 
 def _to_float(value) -> float | None:

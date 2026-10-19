@@ -85,6 +85,32 @@ export type ClimatItem = {
     prcp_mm: number | null;
 };
 
+export type CampagneCarteItem = {
+    region: string | null;
+    annee: number;
+    nb_campagnes: number;
+    production_t: number | null;
+    superficie_ha: number | null;
+    nb_campagnes_rendement: number;
+    rendement_t_ha: number | null;
+    nb_avec_climat: number;
+    nb_climat_renseigne: number;
+};
+
+export type ClimatCarteItem = {
+    region: string | null;
+    annee: number;
+    pluie_cumul_mm: number | null;
+    nb_stations_pluie: number;
+    tavg_moyenne: number | null;
+    nb_stations_temperature: number;
+};
+
+export type AgroclimatOptionsCarte = {
+    produits: string[];
+    systemes: string[];
+};
+
 /* ---------- Routes ---------- */
 
 // axios omet les paramètres undefined : un filtre vide n'est pas envoyé.
@@ -120,6 +146,28 @@ export async function fetchClimatAnnuel(region: string | null, signal?: AbortSig
     return response.data.data;
 }
 
+export async function fetchCampagnesCarte(
+    produit: string | null,
+    systeme: string | null,
+    signal?: AbortSignal,
+): Promise<CampagneCarteItem[]> {
+    const response = await http.get<{ data: CampagneCarteItem[] }>("/api/v1/agroclimat/carte", {
+        params: { produit: produit ?? undefined, systeme_production: systeme ?? undefined },
+        signal,
+    });
+    return response.data.data;
+}
+
+export async function fetchClimatCarte(signal?: AbortSignal): Promise<ClimatCarteItem[]> {
+    const response = await http.get<{ data: ClimatCarteItem[] }>("/api/v1/climat/annuel/regions", { signal });
+    return response.data.data;
+}
+
+export async function fetchOptionsCarte(signal?: AbortSignal): Promise<AgroclimatOptionsCarte> {
+    const response = await http.get<AgroclimatOptionsCarte>("/api/v1/agroclimat/options-carte", { signal });
+    return response.data;
+}
+
 type Paginated<T> = { data: T[]; pagination: { total_pages: number } };
 
 /** Requêtes de pages simultanées au plus : chaque page déclenche un COUNT + SELECT Snowflake. */
@@ -152,10 +200,19 @@ export function getApiErrorMessage(error: unknown): string {
         if (typeof detail === "string") return detail;
         if (error.code === "ECONNABORTED") return "La requête a dépassé le délai d'attente autorisé.";
         if (!error.response) {
-            return "Impossible de joindre l'API. Vérifie que le serveur FastAPI est démarré et que VITE_API_BASE_URL est correcte.";
+            return "Connexion interrompue pendant le chargement. L'API peut toujours fonctionner ; vérifie ta connexion puis réessaie.";
         }
         if (error.response.status === 404) return "Route introuvable : l'API déployée n'expose peut-être pas encore les routes d'agrégats.";
         return `Erreur HTTP ${error.response.status}`;
     }
     return error instanceof Error ? error.message : "Une erreur inconnue est survenue.";
 }
+
+export function retryApiRequest(failureCount: number, error: unknown): boolean {
+    if (failureCount >= 2) return false;
+    if (!axios.isAxiosError(error)) return error instanceof TypeError;
+    if (!error.response) return true;
+    return error.response.status >= 500;
+}
+
+export const retryApiDelay = (attempt: number) => Math.min(1000 * 2 ** attempt, 5000);

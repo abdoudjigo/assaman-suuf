@@ -54,3 +54,15 @@ class ClimatAnnuelResponse(BaseModel):
     """Réponse de la route Climat annuel."""
 
     data: list[ClimatAnnuelItem]
+
+
+class ClimatAnnuelRegionItem(ClimatAnnuelItem):
+    """Indicateurs climatiques annuels pour une région."""
+
+    region: str | None = None
+
+
+class ClimatAnnuelRegionsResponse(BaseModel):
+    """Indicateurs annuels groupés par région pour la carte."""
+
+    data: list[ClimatAnnuelRegionItem]

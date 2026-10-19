@@ -269,7 +269,7 @@ export default function DashboardMap() {
         {/* z-0 : isole les panneaux internes de Leaflet pour qu'ils restent sous l'interface */}
         <div ref={mapContainer} className="absolute inset-0 z-0" aria-label="Carte interactive du Sénégal"/>
         <HachuresDefs/>
-        {regionsGeo.isError && <div role="alert" className="absolute left-1/2 top-36 z-40 flex max-w-[90vw] -translate-x-1/2 items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs text-red-700 shadow"><AlertTriangle size={15}/><span>{regionsGeo.error.message}</span><button onClick={() => regionsGeo.refetch()} className="font-semibold underline">Réessayer</button></div>}
+        {regionsGeo.isError && <div role="alert" className="absolute left-1/2 top-36 z-40 flex max-w-[90vw] -translate-x-1/2 items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs text-red-700 shadow"><AlertTriangle size={15}/><span>{regionsGeo.error instanceof Error ? regionsGeo.error.message : String(regionsGeo.error)}</span><button onClick={() => regionsGeo.refetch()} className="font-semibold underline">Réessayer</button></div>}
         {!mapReady && <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-100/70"><div className="rounded-xl bg-white px-4 py-3 text-sm text-slate-600 shadow">Chargement de la carte…</div></div>}
         {mapError && <div role="status" className="absolute left-1/2 top-24 z-40 flex max-w-[90vw] -translate-x-1/2 items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs text-amber-800 shadow"><AlertTriangle size={15}/><span>{mapError}</span><button onClick={() => setMapError("")} aria-label="Fermer"><X size={14}/></button></div>}
 

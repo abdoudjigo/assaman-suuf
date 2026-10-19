@@ -1,11 +1,14 @@
 import { useCallback, useMemo } from "react";
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import {
     fetchAllPages,
+    fetchCampagnesCarte,
+    fetchClimatCarte,
     getApiErrorMessage,
-    type CampagneItem,
-    type ClimatItem,
+    fetchOptionsCarte,
+    retryApiDelay,
+    retryApiRequest,
     type StationItem,
 } from "../services/dashboardApi";
 import { useZones } from "./useDashboardData";
@@ -16,8 +19,8 @@ import {
     construireEchelle,
     couvertureClimat,
     evolution,
-    indexerCampagnes,
-    indexerClimat,
+    indexerCampagnesCarte,
+    indexerClimatCarte,
     statsRegions,
     valeurIndicateur,
     type CarteFiltres,
@@ -25,9 +28,15 @@ import {
 } from "../utils/cartographieAggregates";
 import { estRegionConnue, normaliserRegion } from "../utils/regions";
 
-/* Les routes brutes sont chargées en entier une seule fois par session
- * (toutes les pages), puis filtrées et agrégées côté client. */
-const CACHE_SESSION = { staleTime: Infinity, gcTime: Infinity, retry: 1 } as const;
+/* Les agrégats compacts de carte sont chargés une fois par session et gardés
+ * en cache ; pendant un changement de filtre, les résultats précédents restent visibles. */
+const CACHE_SESSION = {
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: retryApiRequest,
+    retryDelay: retryApiDelay,
+    placeholderData: keepPreviousData,
+} as const;
 
 export type RegionsGeo = FeatureCollection<Polygon | MultiPolygon, { code: string; nom: string }>;
 
@@ -44,17 +53,24 @@ export const useRegionsGeo = () =>
         ...CACHE_SESSION,
     });
 
-export const useCampagnes = () =>
+export const useCampagnes = (produit: string | null, systeme: string | null) =>
     useQuery({
-        queryKey: ["cartographie", "agroclimat"],
-        queryFn: ({ signal }) => fetchAllPages<CampagneItem>("/api/v1/agroclimat", signal),
+        queryKey: ["cartographie", "agroclimat", produit, systeme],
+        queryFn: ({ signal }) => fetchCampagnesCarte(produit, systeme, signal),
         ...CACHE_SESSION,
     });
 
 export const useClimatObservations = () =>
     useQuery({
         queryKey: ["cartographie", "climat"],
-        queryFn: ({ signal }) => fetchAllPages<ClimatItem>("/api/v1/climat", signal),
+        queryFn: ({ signal }) => fetchClimatCarte(signal),
+        ...CACHE_SESSION,
+    });
+
+export const useOptionsCarte = () =>
+    useQuery({
+        queryKey: ["cartographie", "options"],
+        queryFn: ({ signal }) => fetchOptionsCarte(signal),
         ...CACHE_SESSION,
     });
 
@@ -65,14 +81,16 @@ export const useStations = () =>
         ...CACHE_SESSION,
     });
 
-export function statutRequete(query: UseQueryResult<unknown>): BlockStatus {
+export function statutRequete(query: {
+    isPending: boolean;
+    isError: boolean;
+    error: unknown;
+    refetch: () => unknown;
+}): BlockStatus {
     if (query.isPending) return { kind: "loading" };
     if (query.isError) return { kind: "error", message: getApiErrorMessage(query.error), onRetry: () => query.refetch() };
     return { kind: "ready" };
 }
-
-const uniques = (values: (string | null)[]) =>
-    [...new Set(values.filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b, "fr"));
 
 export type LigneDetail = { indicateur: Indicateur; valeur: number | null; valeurN1: number | null; evolution: number | null };
 
@@ -80,20 +98,19 @@ export function useCartographie(filtres: CarteFiltres) {
     const indicateur = getIndicateur(filtres.indicateur);
     const climatique = indicateur.famille === "climat";
 
-    const campagnes = useCampagnes();
+    const produitFiltre = climatique ? null : filtres.produit;
+    const systemeFiltre = climatique ? null : filtres.systeme;
+    const campagnes = useCampagnes(produitFiltre, systemeFiltre);
     const climat = useClimatObservations();
     const stations = useStations();
     const zones = useZones();
-
-    // Culture et système ne s'appliquent pas aux indicateurs climatiques (mesures de stations).
-    const produit = climatique ? null : filtres.produit;
-    const systeme = climatique ? null : filtres.systeme;
+    const optionsCarte = useOptionsCarte();
 
     const campIdx = useMemo(
-        () => (campagnes.data ? indexerCampagnes(campagnes.data, produit, systeme) : null),
-        [campagnes.data, produit, systeme],
+        () => (campagnes.data ? indexerCampagnesCarte(campagnes.data) : null),
+        [campagnes.data],
     );
-    const climIdx = useMemo(() => (climat.data ? indexerClimat(climat.data) : null), [climat.data]);
+    const climIdx = useMemo(() => (climat.data ? indexerClimatCarte(climat.data) : null), [climat.data]);
 
     const sources: SourcesCarte = useMemo(
         () => ({ campagnes: campIdx?.index ?? null, climat: climIdx?.index ?? null, normalePluie: climIdx?.normalePluie ?? null }),
@@ -118,14 +135,14 @@ export function useCartographie(filtres: CarteFiltres) {
 
     const options = useMemo(() => {
         const annees = new Set<number>();
-        campagnes.data?.forEach((r) => r.annee !== null && annees.add(r.annee));
-        climat.data?.forEach((r) => r.annee !== null && annees.add(r.annee));
+        campagnes.data?.forEach((r) => annees.add(r.annee));
+        climat.data?.forEach((r) => annees.add(r.annee));
         return {
             annees: [...annees].sort((a, b) => b - a),
-            produits: uniques(campagnes.data?.map((r) => r.produit) ?? []),
-            systemes: uniques(campagnes.data?.map((r) => r.systeme_production) ?? []),
+            produits: optionsCarte.data?.produits ?? [],
+            systemes: optionsCarte.data?.systemes ?? [],
         };
-    }, [campagnes.data, climat.data]);
+    }, [campagnes.data, climat.data, optionsCarte.data]);
 
     const stationsParRegion = useMemo(() => {
         const parRegion = new Map<string, StationItem[]>();
@@ -174,6 +191,7 @@ export function useCartographie(filtres: CarteFiltres) {
         couverture,
         options,
         statut,
+        statutOptions: statutRequete(optionsCarte),
         statutStations: statutRequete(stations),
         stationsParRegion,
         nonApparies,
