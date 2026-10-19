@@ -7,7 +7,7 @@ import type { DashboardFilters } from "../utils/agroAggregates";
    tables de référence (zones, produits) sont paginées.
    ========================================================= */
 
-export const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? "";
+export const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8001";
 
 const PAGE_SIZE = 200;
 

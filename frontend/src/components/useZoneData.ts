@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { normaliserRegion as norm } from "../utils/regions";
-
-const API = import.meta.env.VITE_API_BASE_URL ?? "";
+import { API_BASE_URL } from "../services/dashboardApi";
 
 export type ZoneValue = { rainfall: number; temperature: number; ndvi: number; drought: number };
 export type ZoneValues = Record<string, ZoneValue>;
+type NamedZoneValue = ZoneValue & { name: string };
 
 export type ZoneSummary = {
     source: "api" | "demo";
@@ -36,11 +36,40 @@ export const DEMO_VALUES: ZoneValues = {
 
 /* Accepte /api/v1/zones sous forme de tableau [{name, rainfall, ...}] ou d'objet {nom: {...}}. */
 export function toZoneValues(payload: unknown): ZoneValues {
-    if (Array.isArray(payload) && payload.length && payload.every((p) => p && typeof p === "object" && "name" in p)) {
-        return Object.fromEntries(payload.map((p: any) => [p.name, p as ZoneValue]));
+    if (Array.isArray(payload)) {
+        const namedValues = payload.filter(isNamedZoneValue);
+        if (namedValues.length > 0 && namedValues.length === payload.length) {
+            return Object.fromEntries(namedValues.map(({ name, rainfall, temperature, ndvi, drought }) => [
+                name,
+                { rainfall, temperature, ndvi, drought },
+            ]));
+        }
     }
-    if (payload && typeof payload === "object" && !Array.isArray(payload) && Object.keys(payload).length) return payload as ZoneValues;
+    if (isRecord(payload) && Object.keys(payload).length > 0) {
+        const zoneValues: ZoneValues = {};
+        for (const [name, value] of Object.entries(payload)) {
+            if (!isZoneValue(value)) return DEMO_VALUES;
+            zoneValues[name] = value;
+        }
+        return zoneValues;
+    }
     return DEMO_VALUES;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isZoneValue(value: unknown): value is ZoneValue {
+    return isRecord(value)
+        && typeof value.rainfall === "number"
+        && typeof value.temperature === "number"
+        && typeof value.ndvi === "number"
+        && typeof value.drought === "number";
+}
+
+function isNamedZoneValue(value: unknown): value is NamedZoneValue {
+    return isRecord(value) && typeof value.name === "string" && isZoneValue(value);
 }
 
 const W = [0, 0, 0, 0.002, 0.012, 0.07, 0.19, 0.31, 0.26, 0.12, 0.03, 0.004];
@@ -70,18 +99,18 @@ function demoSummary(zone: string): ZoneSummary {
 /* Résumé d'une zone, rafraîchi toutes les `refreshMs` (en pause si l'onglet est masqué).
  * Endpoint attendu : GET /api/v1/zones/{nom}/summary -> ZoneSummary (sans "source"). */
 export function useZoneSummary(zone: string | null, refreshMs = 60_000) {
-    const [data, setData] = useState<ZoneSummary | null>(null);
+    const [data, setData] = useState<{ zone: string; summary: ZoneSummary } | null>(null);
 
     useEffect(() => {
-        if (!zone) { setData(null); return; }
+        if (!zone) return;
         const ctrl = new AbortController();
         const load = async () => {
             try {
-                const r = await fetch(`${API}/api/v1/zones/${encodeURIComponent(zone)}/summary`, { signal: ctrl.signal, headers: { Accept: "application/json" } });
+                const r = await fetch(`${API_BASE_URL}/api/v1/zones/${encodeURIComponent(zone)}/summary`, { signal: ctrl.signal, headers: { Accept: "application/json" } });
                 if (!r.ok) throw new Error(String(r.status));
-                setData({ ...(await r.json()), source: "api" });
+                setData({ zone, summary: { ...(await r.json()), source: "api" } });
             } catch {
-                if (!ctrl.signal.aborted) setData(demoSummary(zone));
+                if (!ctrl.signal.aborted) setData({ zone, summary: demoSummary(zone) });
             }
         };
         load();
@@ -89,5 +118,5 @@ export function useZoneSummary(zone: string | null, refreshMs = 60_000) {
         return () => { ctrl.abort(); clearInterval(id); };
     }, [zone, refreshMs]);
 
-    return data;
+    return data?.zone === zone ? data.summary : null;
 }

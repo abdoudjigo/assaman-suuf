@@ -95,14 +95,14 @@ const initialActiveLayers: Record<string, boolean> = {
 
 const FILTRES_INITIAUX: CarteFiltres = { indicateur: INDICATEUR_PAR_DEFAUT, annee: null, produit: null, systeme: null };
 
-// Fonds de carte raster : aucune clé API requise.
+// Fonds de carte raster Esri : aucune clé API requise.
 const baseMaps = [
     { id: "Clair", label: "Clair", icon: MapIcon,
-        url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-        attribution: "© OpenStreetMap © CARTO", subdomains: "abcd" },
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+        attribution: "Tiles © Esri — Sources: Esri, HERE, Garmin, OpenStreetMap contributors", subdomains: "" },
     { id: "Sombre", label: "Sombre", icon: MapIcon,
-        url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-        attribution: "© OpenStreetMap © CARTO", subdomains: "abcd" },
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+        attribution: "Tiles © Esri — Sources: Esri, HERE, Garmin, OpenStreetMap contributors", subdomains: "" },
     { id: "Terrain", label: "Terrain", icon: Mountain,
         url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
         attribution: "© OpenStreetMap, SRTM · © OpenTopoMap", subdomains: "abc" },

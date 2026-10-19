@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Map as MapLibreMap, type ExpressionSpecification, type GeoJSONSource, type StyleSpecification } from "maplibre-gl";import "maplibre-gl/dist/maplibre-gl.css";
+import { Map as MapLibreMap, type ExpressionSpecification, type GeoJSONSource, type StyleSpecification } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import type { FeatureCollection, Geometry } from "geojson";
 import type { ZoneValues } from "./useZoneData";
 import { normaliserRegion as norm } from "../utils/regions";
 
@@ -12,10 +14,10 @@ import { normaliserRegion as norm } from "../utils/regions";
 const GEOJSON_URL = "/data/senegal-adm1.geojson";
 const SRC = "zones";
 
-/* Fonds de carte : à remplacer par MapTiler / vos tuiles en production (conditions d'usage des fournisseurs). */
+/* Fonds Esri sans clé API (vérifier les conditions d'usage du fournisseur en production). */
 const BASES: Record<string, { tiles: string[]; attribution: string; maxzoom?: number }> = {
-    Clair: { tiles: ["https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"], attribution: "© OpenStreetMap © CARTO" },
-    Sombre: { tiles: ["https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"], attribution: "© OpenStreetMap © CARTO" },
+    Clair: { tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"], attribution: "Tiles © Esri — Sources: Esri, HERE, Garmin, OpenStreetMap contributors" },
+    Sombre: { tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"], attribution: "Tiles © Esri — Sources: Esri, HERE, Garmin, OpenStreetMap contributors" },
     Satellite: { tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], attribution: "Esri, Maxar, Earthstar Geographics" },
     Terrain: { tiles: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"], attribution: "© OpenTopoMap", maxzoom: 17 },
 };
@@ -29,6 +31,15 @@ const INDICATORS: Record<string, { prop: string; stops: [number, string][] }> = 
     ndvi: { prop: "ndvi", stops: [[0.2, "#e6d9a0"], [0.45, "#8abf62"], [0.7, "#1d6b3a"]] },
 };
 
+type RegionProperties = {
+    name?: string;
+    shapeName?: string;
+    NAME_1?: string;
+    [key: string]: unknown;
+};
+
+type SenegalRegions = FeatureCollection<Geometry, RegionProperties>;
+
 const style = (): StyleSpecification => ({
     version: 8,
     glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
@@ -41,14 +52,34 @@ const style = (): StyleSpecification => ({
     ],
 });
 
-function bbox(geom: any): [number, number, number, number] {
-    let a = 180, b = 90, c = -180, d = -90;
-    const walk = (x: any) => {
-        if (typeof x[0] === "number") { a = Math.min(a, x[0]); c = Math.max(c, x[0]); b = Math.min(b, x[1]); d = Math.max(d, x[1]); }
-        else x.forEach(walk);
-    };
-    walk(geom.coordinates);
-    return [a, b, c, d];
+function positions(geometry: Geometry): number[][] {
+    switch (geometry.type) {
+        case "Point":
+            return [geometry.coordinates];
+        case "MultiPoint":
+        case "LineString":
+            return geometry.coordinates;
+        case "MultiLineString":
+        case "Polygon":
+            return geometry.coordinates.flat();
+        case "MultiPolygon":
+            return geometry.coordinates.flat(2);
+        case "GeometryCollection":
+            return geometry.geometries.flatMap(positions);
+    }
+}
+
+function bbox(geometry: Geometry): [number, number, number, number] | null {
+    const coords = positions(geometry);
+    if (!coords.length) return null;
+    let west = 180, south = 90, east = -180, north = -90;
+    for (const [longitude, latitude] of coords) {
+        west = Math.min(west, longitude);
+        east = Math.max(east, longitude);
+        south = Math.min(south, latitude);
+        north = Math.max(north, latitude);
+    }
+    return [west, south, east, north];
 }
 
 type Props = {
@@ -65,15 +96,18 @@ type Props = {
 export default function AgroMap({ selectedZone, onSelectZone, baseMap, activeLayerIds, layerSettings, values, zoom, setZoom }: Props) {
     const box = useRef<HTMLDivElement>(null);
     const mapRef = useRef<MapLibreMap | null>(null);
-    const geoRef = useRef<any>(null);
+    const geoRef = useRef<SenegalRegions | null>(null);
     const hoverRef = useRef<string | null>(null);
     const prevSel = useRef<string | null>(null);
     const selectCb = useRef(onSelectZone);
     const zoomCb = useRef(setZoom);
-    selectCb.current = onSelectZone;
-    zoomCb.current = setZoom;
     const [ready, setReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        selectCb.current = onSelectZone;
+        zoomCb.current = setZoom;
+    }, [onSelectZone, setZoom]);
 
     /* Initialisation */
     useEffect(() => {
@@ -93,11 +127,18 @@ export default function AgroMap({ selectedZone, onSelectZone, baseMap, activeLay
             try {
                 const res = await fetch(GEOJSON_URL);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const g = await res.json();
-                g.features.forEach((f: any) => { f.properties = { ...f.properties, name: f.properties.name ?? f.properties.shapeName ?? f.properties.NAME_1 }; });
+                const g = await res.json() as SenegalRegions;
+                g.features.forEach((feature) => {
+                    const properties = feature.properties ?? {};
+                    feature.properties = {
+                        ...properties,
+                        name: properties.name ?? properties.shapeName ?? properties.NAME_1,
+                    };
+                });
                 geoRef.current = g;
-            } catch (e) {
-                setError(`GeoJSON introuvable (${GEOJSON_URL}). Ajoutez le fichier des régions dans /public/data.`);
+            } catch (loadError) {
+                const detail = loadError instanceof Error ? loadError.message : String(loadError);
+                setError(`Impossible de charger le GeoJSON (${GEOJSON_URL}) : ${detail}`);
                 return;
             }
             map.addSource(SRC, { type: "geojson", data: geoRef.current, promoteId: "name" });
@@ -145,7 +186,16 @@ export default function AgroMap({ selectedZone, onSelectZone, baseMap, activeLay
         const map = mapRef.current;
         if (!ready || !map || !geoRef.current) return;
         const byKey = Object.fromEntries(Object.entries(values).map(([k, v]) => [norm(k), v]));
-        const data = { ...geoRef.current, features: geoRef.current.features.map((f: any) => ({ ...f, properties: { ...f.properties, ...byKey[norm(f.properties.name)] } })) };
+        const data: SenegalRegions = {
+            ...geoRef.current,
+            features: geoRef.current.features.map((feature) => ({
+                ...feature,
+                properties: {
+                    ...feature.properties,
+                    ...byKey[norm(feature.properties?.name ?? "")],
+                },
+            })),
+        };
         (map.getSource(SRC) as GeoJSONSource).setData(data);
     }, [ready, values]);
 
@@ -178,9 +228,11 @@ export default function AgroMap({ selectedZone, onSelectZone, baseMap, activeLay
         map.setFilter("zones-3d", ["==", ["get", "name"], selectedZone ?? ""]);
         if (!selectedZone) { map.easeTo({ center: [-14.5, 14.5], zoom: 6.2, pitch: 0, bearing: 0, duration: 800 }); return; }
         map.setFeatureState({ source: SRC, id: selectedZone }, { selected: true });
-        const f = geoRef.current?.features.find((x: any) => x.properties.name === selectedZone);
-        if (!f) return;
-        const [a, b, c, d] = bbox(f.geometry);
+        const feature = geoRef.current?.features.find((item) => item.properties?.name === selectedZone);
+        if (!feature?.geometry) return;
+        const bounds = bbox(feature.geometry);
+        if (!bounds) return;
+        const [a, b, c, d] = bounds;
         map.fitBounds([[a, b], [c, d]], { padding: { top: 90, bottom: 110, left: 60, right: window.innerWidth > 900 ? 420 : 60 }, pitch: 35, bearing: -8, maxZoom: 8, duration: 1000 });
     }, [ready, selectedZone]);
 

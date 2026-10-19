@@ -36,7 +36,7 @@ export function useScenarioPluie(request: SimulationRequest | null) {
         queries: PLUIES_SCENARIO.map((pluie) => {
             const scenario = request && { ...request, pluie_cumul_mm: pluie };
             return {
-                queryKey: ["prediction", "simulation", scenario],
+                queryKey: ["prediction", "scenario-pluie", request, pluie],
                 queryFn: ({ signal }: { signal: AbortSignal }) => predictionClient.simuler(scenario!, signal),
                 enabled: scenario !== null,
                 retry,

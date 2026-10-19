@@ -1,4 +1,5 @@
 import { AlertTriangle, Droplets, Sprout, Thermometer, TrendingUp, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useZoneSummary, type ZoneSummary } from "./useZoneData";
 
 const MONTHS = "JFMAMJJASOND";
@@ -8,7 +9,7 @@ const LEVEL = {
     high: "bg-red-50 text-red-700",
 };
 
-function Kpi({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+function Kpi({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
     return (
         <div className="rounded-xl bg-slate-50 p-3">
             <div className="flex items-center gap-1.5 text-slate-400">

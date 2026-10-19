@@ -4,6 +4,28 @@ import {FilterSection,SelectField,InputField,CheckOption} from "./ComposantField
 
 import {MapPinned,Filter,CloudRain,Sprout,SlidersHorizontal,
     Mountain,Droplets,Satellite,AlertTriangle,Check,Building2,Activity,} from "lucide-react"
+import type { Dispatch, SetStateAction } from "react";
+
+type FilterState = {
+    geography: { region: string; department: string; commune: string; agriculturalZone: string };
+    climate: { periodStart: string; periodEnd: string; rainfallMin: string; rainfallMax: string };
+    agriculture: { crop: string; season: string; farmingType: string; irrigation: string };
+    practices: { fertilizerType: string; fertilizerDose: string; fertilizerApplicationPeriod: string; irrigationMethod: string; tillage: string };
+    soil: { soilType: string; fertility: string; salinity: string; ph: string };
+    water: { availability: string; waterStress: string };
+    remoteSensing: { index: string; minValue: string };
+    risks: { selected: string[] };
+    infrastructure: { types: string[]; status: string; fromYear: string; toYear: string };
+    historical: { yearStart: string; yearEnd: string; infrastructureHistory: string; cropHistory: string; landUseChange: string };
+};
+
+type FilterPanelProps = {
+    filters: FilterState;
+    setFilters: Dispatch<SetStateAction<FilterState>>;
+    onApply: () => void;
+    onReset: () => void;
+    onClose: () => void;
+};
 
 /*
 |--------------------------------------------------------------------------
@@ -17,30 +39,39 @@ function FilterPanel({
                          onApply,
                          onReset,
                          onClose,
-                     }) {
-    const updateNestedFilter = (section, field, value) => {
+                     }: FilterPanelProps) {
+    const updateNestedFilter = (section: keyof FilterState, field: string, value: string) => {
         setFilters((current) => ({
             ...current,
             [section]: {
                 ...current[section],
                 [field]: value,
             },
-        }));
+        } as FilterState));
     };
 
-    const toggleArrayFilter = (section, field, value) => {
+    const toggleArrayFilter = (section: "risks" | "infrastructure", value: string) => {
         setFilters((current) => {
-            const currentValues = current[section][field];
-
-            const nextValues = currentValues.includes(value)
-                ? currentValues.filter((item) => item !== value)
-                : [...currentValues, value];
-
+            if (section === "risks") {
+                const selected = current.risks.selected;
+                return {
+                    ...current,
+                    risks: {
+                        ...current.risks,
+                        selected: selected.includes(value)
+                            ? selected.filter((item) => item !== value)
+                            : [...selected, value],
+                    },
+                };
+            }
+            const types = current.infrastructure.types;
             return {
                 ...current,
-                [section]: {
-                    ...current[section],
-                    [field]: nextValues,
+                infrastructure: {
+                    ...current.infrastructure,
+                    types: types.includes(value)
+                        ? types.filter((item) => item !== value)
+                        : [...types, value],
                 },
             };
         });
@@ -459,11 +490,7 @@ function FilterPanel({
                                 label={risk}
                                 checked={filters.risks.selected.includes(risk)}
                                 onChange={() =>
-                                    toggleArrayFilter(
-                                        "risks",
-                                        "selected",
-                                        risk
-                                    )
+                                    toggleArrayFilter("risks", risk)
                                 }
                             />
                         ))}
@@ -489,11 +516,7 @@ function FilterPanel({
                                 label={type}
                                 checked={filters.infrastructure.types.includes(type)}
                                 onChange={() =>
-                                    toggleArrayFilter(
-                                        "infrastructure",
-                                        "types",
-                                        type
-                                    )
+                                    toggleArrayFilter("infrastructure", type)
                                 }
                             />
                         ))}

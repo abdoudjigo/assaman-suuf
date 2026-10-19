@@ -32,7 +32,7 @@ npm run dev              # http://localhost:5173
 
 | Variable | Rôle |
 | --- | --- |
-| `VITE_API_BASE_URL` | URL de base de l'API, ex. `http://localhost:8001`. Vide : même origine que le frontend ; en dev, le proxy Vite redirige `/api` vers `127.0.0.1:8001` ([vite.config.ts](vite.config.ts)). |
+| `VITE_API_BASE_URL` | URL de base de l'API. Par défaut en développement local : `http://127.0.0.1:8001`. La définir pour pointer vers l'API de l'environnement cible. |
 
 Autres commandes :
 
@@ -119,7 +119,5 @@ src/
 
 ## 6. Points connus
 
-- **Build de production** : `npm run build` échoue tant que [MapLibreView.tsx](src/components/maps/MapLibreView.tsx) contient une erreur de syntaxe (fichier antérieur, non utilisé). Le `Dockerfile` de production est donc bloqué ; `npx vite build` fonctionne.
-- **Docker de dev** : [docker-compose.yaml](docker-compose.yaml) définit `VITE_API_URL`, alors que le code lit `VITE_API_BASE_URL`.
-- **Lint** : `npm run lint` remonte des erreurs dans des fichiers antérieurs (`AgroMap.tsx`, `useZoneData.ts`, …). Les fichiers du Dashboard et de la Prédiction sont propres.
+- **Docker de dev** : `VITE_API_BASE_URL` doit pointer vers l'adresse de l'API accessible depuis le navigateur (par défaut `http://localhost:8001`).
 - **Cartographie** : les indicateurs de la carte sont encore des données de démonstration.

@@ -1,11 +1,3 @@
-
-
-MapLibreView(){
-    return(
-        <div className={}>
-
-        </div>
-    )
+export default function MapLibreView() {
+    return <div className="absolute inset-0" />;
 }
-
-export default MapLibreView;

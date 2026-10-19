@@ -1,5 +1,5 @@
 import {
-    Activity, AlertTriangle, BarChart3, Building2, CloudRain, Droplets, Gauge, Layers,
+    Activity, AlertTriangle, BarChart3, Building2, CloudRain, Droplets, Gauge,
     Map as MapIcon, MapPinned, Mountain, Satellite, Sprout, Sun, Thermometer, TrendingUp,
     Waves, Wind,
 } from "lucide-react";
@@ -758,7 +758,7 @@ export const flattenLayers = () =>
 
 export const allLayers = flattenLayers();
 
-export const getLayerById = (layerId) =>
+export const getLayerById = (layerId: string) =>
     allLayers.find((layer) => layer.id === layerId);
 
 /*
@@ -837,5 +837,4 @@ export const initialLayerSettings = Object.fromEntries(
         },
     ])
 );
-
 

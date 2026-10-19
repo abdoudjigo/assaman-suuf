@@ -7,6 +7,7 @@ import {
     RefreshCw,
     X,
 } from "lucide-react";
+import { API_BASE_URL } from "../services/dashboardApi";
 
 export type ApiLogEntry = {
     id: string;
@@ -270,7 +271,7 @@ export function DashboardMapsServices({
                     <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                         <header className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4"><div><h3 className="text-sm font-bold text-slate-900">État de l'interrogation</h3><p className="mt-1 text-xs text-slate-500">Informations utiles pour interpréter la réponse</p></div><Activity size={19} className="text-blue-700" /></header>
                         <div className="space-y-4 p-5">
-                            <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Endpoint</p><p className="mt-1 break-all font-mono text-xs text-slate-700">{latestLog?.endpoint ?? `${import.meta.env.VITE_API_BASE_URL ?? ""}/api/v1/zones`}</p></div>
+                            <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Endpoint</p><p className="mt-1 break-all font-mono text-xs text-slate-700">{latestLog?.endpoint ?? `${API_BASE_URL}/api/v1/zones`}</p></div>
                             <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Statut HTTP</p><p className="mt-1"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${latestLog?.status === "ERROR" || (typeof latestLog?.status === "number" && latestLog.status >= 400) ? "bg-red-50 text-red-700" : latestLog ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-600"}`}>{latestLog?.status ?? "Non exécuté"}</span></p></div>
                             <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Horodatage</p><p className="mt-1 text-xs text-slate-700">{latestLog ? new Date(latestLog.timestamp).toLocaleString() : "—"}</p></div>
                             <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Message</p><p className="mt-1 break-words text-xs leading-5 text-slate-600">{latestLog?.message ?? "Lance une interrogation pour afficher le diagnostic."}</p></div>
@@ -282,4 +283,3 @@ export function DashboardMapsServices({
         </section>
     );
 }
-

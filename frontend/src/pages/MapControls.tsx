@@ -4,6 +4,7 @@
 |--------------------------------------------------------------------------
 */
 import {Plus,Minus,LocateFixed,Layers} from "lucide-react";
+import type { Dispatch, SetStateAction } from "react";
 
 function MapControls({
                          zoom,
@@ -11,6 +12,12 @@ function MapControls({
                          onLocate,
                          baseMap,
                          onOpenBaseMap,
+                     }: {
+                         zoom: number;
+                         setZoom: Dispatch<SetStateAction<number>>;
+                         onLocate: () => void;
+                         baseMap: string;
+                         onOpenBaseMap: () => void;
                      }) {
     return (
         <div className="absolute right-4 top-20 z-20 flex flex-col gap-2">

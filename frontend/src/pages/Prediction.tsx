@@ -122,7 +122,7 @@ function validate(draft: Draft, options: SimulationOptions | undefined): { reque
 const errorMessage = (error: unknown) =>
     error instanceof PredictionError || error instanceof Error ? error.message : "Erreur inconnue.";
 
-function statusOf(query: UseQueryResult<unknown>, isEmpty = false, emptyMessage?: string): BlockStatus {
+function statusOf<TData, TError>(query: UseQueryResult<TData, TError>, isEmpty = false, emptyMessage?: string): BlockStatus {
     if (query.isPending) return { kind: "loading" };
     if (query.isError) return { kind: "error", message: errorMessage(query.error), onRetry: () => query.refetch() };
     if (isEmpty) return { kind: "empty", message: emptyMessage };

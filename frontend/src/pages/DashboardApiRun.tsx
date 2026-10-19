@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import axios from "axios";
 import AppNav from "../components/layout/AppNav";
+import { API_BASE_URL } from "../services/dashboardApi";
 import {
     Activity,
     AlertCircle,
@@ -28,9 +29,6 @@ import {
 /* =========================================================
    1. CONFIGURATION API
    ========================================================= */
-
-const API_BASE_URL: string =
-    import.meta.env.VITE_API_BASE_URL ?? "";
 
 type HttpMethod = "GET" | "POST";
 
@@ -392,7 +390,7 @@ function DashboardApiRun() {
             const durationMs = Math.round(performance.now() - startedAt);
             const message = getErrorMessage(requestError);
 
-            const status = axios.isAxiosError(requestError)
+            const status: ApiLogEntry["status"] = axios.isAxiosError(requestError)
                 ? requestError.response?.status ?? "ERROR"
                 : "ERROR";
 
