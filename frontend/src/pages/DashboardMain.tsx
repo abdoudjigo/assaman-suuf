@@ -61,7 +61,7 @@ function DashboardMain() {
                     />
                     <div className="max-w-3xl">
                         <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/75 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-800">
-                            <span className="h-2 w-2 rounded-full bg-emerald-600" />
+                            {/* <span className="h-2 w-2 rounded-full bg-emerald-600" /> */}
                             Plateforme agroclimatique · Sénégal
                         </span>
                         <h1 className="mt-5 max-w-2xl text-3xl font-bold leading-tight tracking-tight text-slate-950 sm:text-4xl lg:text-[2.75rem]">
