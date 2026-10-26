@@ -4,17 +4,22 @@ import {
   ArrowRight,
   CloudRain,
   MapPinned,
-  Sprout,
   TrendingUp,
 } from "lucide-react";
-
 import { Link } from "react-router-dom";
-import AppNav from "../components/layout/AppNav";
-import Footer from "../components/layout/Footer";
 import heroImage from "../assets/hero.png";
 import DashboardMap from "./DashboardMap";
 
-const destinations = [
+interface Destination {
+  title: string;
+  description: string;
+  href: string;
+  label: string;
+  icon: typeof MapPinned;
+  tone: string;
+}
+
+const destinations: Destination[] = [
   {
     title: "Explorer les régions",
     description:
@@ -47,7 +52,11 @@ const destinations = [
 const cardClassName =
   "group flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700";
 
-function DestinationCard({ destination }) {
+interface DestinationCardProps {
+  destination: Destination;
+}
+
+function DestinationCard({ destination }: DestinationCardProps) {
   const {
     title,
     description,
@@ -102,38 +111,9 @@ function DestinationCard({ destination }) {
 
 function DashboardMain() {
   return (
-    <div className="min-h-screen overflow-x-clip bg-[#f8faf6] text-slate-900">
-      {/* En-tête */}
-      {/* <header className="border-b border-slate-200/80 bg-white">
-        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
-          <Link
-            to="/"
-            className="flex shrink-0 items-center gap-3"
-            aria-label="Assaman-Suuf, accueil"
-          >
-            <span
-              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-700 text-white"
-              aria-hidden="true"
-            >
-              <Sprout size={21} />
-            </span>
-
-            <span>
-              <span className="block text-sm font-extrabold tracking-tight">
-                Assaman-Suuf
-              </span>
-              <span className="block text-xs text-slate-500">
-                Agriculture et climat au Sénégal
-              </span>
-            </span>
-          </Link>
-
-          <AppNav className="max-w-full overflow-x-auto" />
-        </div>
-      </header> */}
-
-      <main className="mx-auto max-w-[1440px] space-y-10 px-5 py-7 sm:px-8 sm:py-10">
-        {/* Hero */}
+    <div className="overflow-x-clip bg-[#f8faf6] text-slate-900">
+      <main className="mx-auto w-full max-w-[1440px] space-y-10 px-5 py-7 sm:px-8 sm:py-10">
+        {/* Section principale */}
         <section
           aria-labelledby="hero-title"
           className="relative isolate overflow-hidden rounded-[2rem] bg-[#edf4e8] px-6 py-9 sm:px-10 sm:py-12 lg:px-14"
@@ -194,14 +174,13 @@ function DashboardMain() {
           </div>
         </section>
 
-        {/* Accès rapide aux fonctionnalités */}
+        {/* Accès rapide */}
         <section aria-labelledby="services-title">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">
                 Par où commencer ?
               </p>
-
               <h2
                 id="services-title"
                 className="mt-1 text-xl font-bold tracking-tight text-slate-900"
@@ -229,7 +208,7 @@ function DashboardMain() {
         <section
           id="senegal-map"
           aria-labelledby="map-title"
-          className="scroll-mt-6"
+          className="scroll-mt-24"
         >
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -259,9 +238,6 @@ function DashboardMain() {
           <DashboardMap embedded />
         </section>
       </main>
-
-      {/* Pied de page */}
-      {/* <Footer /> */}
     </div>
   );
 }
