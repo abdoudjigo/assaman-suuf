@@ -1,25 +1,29 @@
+
+import { Outlet } from "react-router-dom";
 import Header from "./Header";
-import Footer from "./Footer.tsx";
+import Footer from "./Footer";
 
-const MainLayout = () => {
-    return (
-        <div className="flex min-h-screen">
-            {/* Sidebar */}
+function MainLayout() {
+  return (
+    <div className="flex min-h-screen flex-col overflow-x-clip bg-[#f8faf6] text-slate-900">
+      {/* En-tête commun du dashboard */}
+      <Header
+        title="Assaman-Suuf"
+        subtitle="Suivi agroclimatique et aide à la décision"
+        userName="Administrateur"
+        organization="DATAFLOW360"
+        notificationCount={3}
+      />
 
-            <div className="flex flex-1 flex-col">
-                <Header
-                    title="DashboardApiRun"
-                    subtitle="Vue générale de la plateforme agroclimatique"
-                />
+      {/* Contenu de la page active */}
+      <main className="w-full flex-1">
+        <Outlet />
+      </main>
 
-                <main className="flex-1 bg-gray-50 p-6">
-                    {/* Contenu de la page */}
-                </main>
-
-                <Footer/>
-            </div>
-        </div>
-    );
-};
+      {/* Pied de page commun */}
+      <Footer />
+    </div>
+  );
+}
 
 export default MainLayout;
