@@ -9,6 +9,7 @@ import {
 import { Link } from "react-router-dom";
 import heroImage from "../assets/hero.png";
 import DashboardMap from "./DashboardMap";
+import BrandSection from "../components/BrandSection";
 
 interface Destination {
   title: string;
@@ -109,70 +110,15 @@ function DestinationCard({ destination }: DestinationCardProps) {
   );
 }
 
+
+
+
 function DashboardMain() {
   return (
     <div className="overflow-x-clip bg-[#f8faf6] text-slate-900">
       <main className="mx-auto w-full max-w-[1440px] space-y-10 px-5 py-7 sm:px-8 sm:py-10">
         {/* Section principale */}
-        <section
-          aria-labelledby="hero-title"
-          className="relative isolate overflow-hidden rounded-[2rem] bg-[#edf4e8] px-6 py-9 sm:px-10 sm:py-12 lg:px-14"
-        >
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-16 -top-24 -z-10 h-80 w-80 rounded-full bg-emerald-200/40 blur-3xl"
-          />
-
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute bottom-0 right-52 -z-10 h-44 w-44 rounded-full bg-amber-100/70 blur-3xl"
-          />
-
-          <img
-            src={heroImage}
-            alt=""
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-2 top-1/2 hidden w-56 -translate-y-1/2 object-contain opacity-90 md:block lg:right-16 lg:w-64"
-          />
-
-          <div className="relative max-w-3xl">
-            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/75 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-800">
-              Plateforme agroclimatique · Sénégal
-            </span>
-
-            <h1
-              id="hero-title"
-              className="mt-5 max-w-2xl text-3xl font-bold leading-tight tracking-tight text-slate-950 sm:text-4xl lg:text-[2.75rem]"
-            >
-              Les données du terrain, plus simples à comprendre.
-            </h1>
-
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base sm:leading-7">
-              Retrouvez au même endroit les informations agricoles et
-              climatiques du Sénégal. Comparez les régions, suivez les
-              conditions météorologiques disponibles et préparez vos
-              décisions de campagne.
-            </p>
-
-            <div className="mt-7 flex flex-wrap items-center gap-3">
-              <a
-                href="#senegal-map"
-                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-800 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
-              >
-                Explorer les données
-                <ArrowDown size={16} aria-hidden="true" />
-              </a>
-
-              <Link
-                to="/prediction"
-                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-900/15 bg-white/80 px-5 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
-              >
-                Explorer les estimations
-                <ArrowRight size={16} aria-hidden="true" />
-              </Link>
-            </div>
-          </div>
-        </section>
+        <BrandSection />
 
         {/* Accès rapide */}
         <section aria-labelledby="services-title">
