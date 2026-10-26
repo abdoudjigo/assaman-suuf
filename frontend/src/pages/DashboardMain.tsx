@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import AppNav from "../components/layout/AppNav";
 import heroImage from "../assets/hero.png";
 import DashboardMap from "./DashboardMap";
+import Footer from "../components/layout/Footer";
 
 const destinations = [
     {
@@ -31,14 +32,6 @@ const destinations = [
     },
 ];
 
-
-function Footer(){
-    return(
-        <footer>
-            
-        </footer>
-    )
-}
 
 function DashboardMain() {
     return (
@@ -154,14 +147,18 @@ function DashboardMain() {
                 </section>
             </main>
 
-            <footer className="border-t border-slate-200 bg-white">
+            {/* <footer className="border-t border-slate-200 bg-white">
                 <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-2 px-5 py-5 text-xs text-slate-500 sm:px-8">
                     <span>Assaman-Suuf · Aide à la décision agroclimatique</span>
                     <Link to="/supervision" className="font-semibold text-emerald-800 hover:text-emerald-950">
                         Accéder à la supervision technique
                     </Link>
                 </div>
-            </footer>
+            </footer> */}
+
+
+            <Footer/>
+            
         </div>
     );
 }
