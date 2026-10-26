@@ -1,105 +1,145 @@
 
-import { Search, Bell, UserCircle, Menu } from "lucide-react";
+import { useState } from "react";
+import { Link, NavLink } from "react-router-dom";
+import { Sprout, Menu, X, ArrowUpRight } from "lucide-react";
 
-interface HeaderProps {
-  title?: string;
-  subtitle?: string;
-  userName?: string;
-  organization?: string;
-  notificationCount?: number;
-  onMenuClick?: () => void;
-}
+const navLinks = [
+  { label: "Accueil", to: "/" },
+  { label: "Nos services", to: "/services" },
+  { label: "Cartographie", to: "/cartographie" },
+  { label: "Données & prévisions", to: "/forecasts" },
+  { label: "À propos", to: "/about" },
+];
 
-const Header = ({
-  title = "DashboardApiRun",
-  subtitle = "Vue générale de la plateforme agroclimatique",
-  userName = "Administrateur",
-  organization = "DATAFLOW360",
-  notificationCount = 1,
-  onMenuClick,
-}: HeaderProps) => {
+const Header = () => {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const closeMenu = () => setMenuOpen(false);
+
   return (
-    <header className="sticky top-0 z-30 flex min-h-20 items-center justify-between gap-4 border-b border-gray-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-6">
-      {/* Titre de la page */}
-      <div className="flex min-w-0 items-center gap-3">
-        {onMenuClick && (
-          <button
-            type="button"
-            onClick={onMenuClick}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 lg:hidden"
-            aria-label="Ouvrir le menu"
-          >
-            <Menu size={21} />
-          </button>
-        )}
+    <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/95 backdrop-blur-md">
+      <div className="mx-auto flex min-h-[76px] max-w-7xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
 
-        <div className="min-w-0">
-          <h1 className="truncate text-lg font-semibold text-gray-900 sm:text-2xl">
-            {title}
-          </h1>
-          <p className="mt-1 hidden text-sm text-gray-500 sm:block">
-            {subtitle}
-          </p>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-        {/* Recherche */}
-        <form
-          role="search"
-          onSubmit={(event) => event.preventDefault()}
-          className="relative hidden md:block"
+        {/* Logo */}
+        <Link
+          to="/"
+          onClick={closeMenu}
+          className="flex shrink-0 items-center gap-3"
+          aria-label="Assaman-Suuf, accueil"
         >
-          <Search
-            size={18}
-            aria-hidden="true"
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-          />
-          <input
-            type="search"
-            placeholder="Rechercher..."
-            aria-label="Rechercher sur la plateforme"
-            className="h-10 w-48 rounded-lg border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 lg:w-64"
-          />
-        </form>
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-800 text-white">
+            <Sprout size={27} strokeWidth={1.8} />
+          </span>
 
-        {/* Notifications */}
-        <button
-          type="button"
-          className="relative flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-          aria-label={`Notifications : ${notificationCount} non lue(s)`}
-        >
-          <Bell size={20} />
-          {notificationCount > 0 && (
-            <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
-              {notificationCount > 9 ? "9+" : notificationCount}
+          <span className="flex flex-col">
+            <span className="text-lg font-extrabold tracking-tight text-emerald-900 sm:text-xl">
+              ASSAMAN-SUUF
             </span>
-          )}
-        </button>
+            <span className="text-[9px] font-semibold tracking-[0.16em] text-gray-500 sm:text-[10px]">
+              AGRICULTURE · CLIMAT · DONNÉES
+            </span>
+          </span>
+        </Link>
 
-        {/* Profil utilisateur */}
+        {/* Navigation desktop */}
+        <nav
+          aria-label="Navigation principale"
+          className="hidden items-center gap-6 lg:flex xl:gap-8"
+        >
+          {navLinks.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === "/"}
+              className={({ isActive }) =>
+                `whitespace-nowrap text-sm font-medium transition ${
+                  isActive
+                    ? "text-emerald-800"
+                    : "text-gray-600 hover:text-emerald-800"
+                }`
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Boutons */}
+        <div className="hidden shrink-0 items-center gap-3 lg:flex">
+          <Link
+            to="/connexion"
+            className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100"
+          >
+            Se connecter
+          </Link>
+
+          <Link
+            to="/cartographie"
+            className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-emerald-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-900"
+          >
+            Explorer la plateforme
+            <ArrowUpRight size={17} />
+          </Link>
+        </div>
+
+        {/* Bouton menu mobile */}
         <button
           type="button"
-          className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 text-left transition hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:gap-3 sm:px-2"
-          aria-label={`Profil de ${userName}`}
+          onClick={() => setMenuOpen((open) => !open)}
+          className="flex h-11 w-11 items-center justify-center rounded-lg text-gray-700 transition hover:bg-gray-100 lg:hidden"
+          aria-label={menuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+          aria-expanded={menuOpen}
+          aria-controls="mobile-navigation"
         >
-          <UserCircle
-            size={34}
-            strokeWidth={1.5}
-            className="shrink-0 text-gray-500"
-          />
-
-          <div className="hidden md:block">
-            <p className="max-w-36 truncate text-sm font-medium text-gray-900">
-              {userName}
-            </p>
-            <p className="max-w-36 truncate text-xs text-gray-500">
-              {organization}
-            </p>
-          </div>
+          {menuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
+
+      {/* Navigation mobile */}
+      {menuOpen && (
+        <nav
+          id="mobile-navigation"
+          aria-label="Navigation mobile"
+          className="border-t border-gray-100 bg-white px-4 py-4 shadow-lg lg:hidden"
+        >
+          <div className="mx-auto flex max-w-7xl flex-col gap-1">
+            {navLinks.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === "/"}
+                onClick={closeMenu}
+                className={({ isActive }) =>
+                  `rounded-lg px-4 py-3 text-sm font-medium ${
+                    isActive
+                      ? "bg-emerald-50 text-emerald-900"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+
+            <Link
+              to="/connexion"
+              onClick={closeMenu}
+              className="mt-2 rounded-lg border border-gray-200 px-4 py-3 text-center text-sm font-semibold text-gray-700"
+            >
+              Se connecter
+            </Link>
+
+            <Link
+              to="/cartographie"
+              onClick={closeMenu}
+              className="mt-1 flex items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 py-3 text-sm font-semibold text-white"
+            >
+              Explorer la plateforme
+              <ArrowUpRight size={17} />
+            </Link>
+          </div>
+        </nav>
+      )}
     </header>
   );
 };
