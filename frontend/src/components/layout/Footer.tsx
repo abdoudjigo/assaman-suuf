@@ -1,7 +1,6 @@
 
-
-import "./Footer.css"
-import { Link, Form } from "react-router-dom";
+import "./Footer.css";
+import { Link } from "react-router-dom";
 
 const footerLinks = [
   {
@@ -16,10 +15,22 @@ const footerLinks = [
   {
     title: "Nos services",
     links: [
-      { label: "Analyse agroclimatique", to: "/services/agroclimatologie" },
-      { label: "Suivi de la végétation", to: "/services/vegetation" },
-      { label: "Cartographie interactive", to: "/services/cartographie" },
-      { label: "Suivi des risques agricoles", to: "/services/risques" },
+      {
+        label: "Analyse agroclimatique",
+        to: "/services/agroclimatologie",
+      },
+      {
+        label: "Suivi de la végétation",
+        to: "/services/vegetation",
+      },
+      {
+        label: "Cartographie interactive",
+        to: "/services/cartographie",
+      },
+      {
+        label: "Suivi des risques agricoles",
+        to: "/services/risques",
+      },
     ],
   },
   {
@@ -34,6 +45,15 @@ const footerLinks = [
 ];
 
 function FooterContact() {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    // Le formulaire sera connecté à l'API FastAPI ultérieurement.
+    alert(
+      "Le formulaire de contact n'est pas encore connecté au serveur."
+    );
+  };
+
   return (
     <div className="footerContact">
       <div className="footerBrand">
@@ -60,7 +80,10 @@ function FooterContact() {
           organisation agricole ? Échangeons sur vos besoins.
         </p>
 
-        <Form method="post" action="/contact" className="footerForm">
+        <form
+          onSubmit={handleSubmit}
+          className="footerForm"
+        >
           <div className="footerFormField">
             <label htmlFor="footer-name">Nom complet</label>
             <input
@@ -99,7 +122,7 @@ function FooterContact() {
           <button type="submit" className="footerSubmit">
             Envoyer le message
           </button>
-        </Form>
+        </form>
       </div>
     </div>
   );
@@ -107,7 +130,10 @@ function FooterContact() {
 
 function FooterNavSection() {
   return (
-    <nav className="footerNavigation" aria-label="Navigation de pied de page">
+    <nav
+      className="footerNavigation"
+      aria-label="Navigation de pied de page"
+    >
       {footerLinks.map((section) => (
         <div className="footerNavColumn" key={section.title}>
           <h3 className="footerTitle">{section.title}</h3>
@@ -177,7 +203,7 @@ function FooterPoliticsSection() {
   );
 }
 
-export function Footer() {
+function Footer() {
   return (
     <footer className="siteFooter">
       <section className="footerTop">
