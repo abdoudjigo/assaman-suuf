@@ -31,6 +31,15 @@ const destinations = [
     },
 ];
 
+
+function Footer(){
+    return(
+        <footer>
+            
+        </footer>
+    )
+}
+
 function DashboardMain() {
     return (
         <div className="min-h-screen overflow-x-hidden bg-[#f8faf6] text-slate-900">
