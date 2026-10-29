@@ -11,7 +11,7 @@ import heroImage from "../assets/hero.png";
 import DashboardMap from "./DashboardMap";
 import BrandSection from "../components/BrandSection";
 import ServicesSection from "../components/ServicesSection";
-
+import FAQSections from "../components/FAQSections";
 interface Destination {
   title: string;
   description: string;
@@ -125,69 +125,72 @@ function DashboardMain() {
 
         {/* Accès rapide */}
         <div className="mx-auto w-full max-w-[1440px] space-y-10 px-5 py-7 sm:px-8 sm:py-10">
-        <section aria-labelledby="services-title">
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">
-                Par où commencer ?
-              </p>
-              <h2
-                id="services-title"
-                className="mt-1 text-xl font-bold tracking-tight text-slate-900"
-              >
-                Choisissez votre besoin
-              </h2>
+            <section aria-labelledby="services-title">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+                <div>
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">
+                    Par où commencer ?
+                </p>
+                <h2
+                    id="services-title"
+                    className="mt-1 text-xl font-bold tracking-tight text-slate-900"
+                >
+                    Choisissez votre besoin
+                </h2>
+                </div>
+
+                <p className="text-sm text-slate-500">
+                Explorez les outils disponibles sur la plateforme.
+                </p>
             </div>
 
-            <p className="text-sm text-slate-500">
-              Explorez les outils disponibles sur la plateforme.
-            </p>
-          </div>
-
-          <div className="grid items-stretch gap-3 md:grid-cols-3">
-            {destinations.map((destination) => (
-              <DestinationCard
-                key={destination.title}
-                destination={destination}
-              />
-            ))}
-          </div>
-        </section>
+            <div className="grid items-stretch gap-3 md:grid-cols-3">
+                {destinations.map((destination) => (
+                <DestinationCard
+                    key={destination.title}
+                    destination={destination}
+                />
+                ))}
+            </div>
+            </section>
 
         {/* Carte interactive */}
-        <section
-          id="senegal-map"
-          aria-labelledby="map-title"
-          className="scroll-mt-24"
-        >
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">
-                Vue territoriale
-              </p>
+            <section
+            id="senegal-map"
+            aria-labelledby="map-title"
+            className="scroll-mt-24"
+            >
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">
+                    Vue territoriale
+                </p>
 
-              <h2
-                id="map-title"
-                className="mt-1 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl"
-              >
-                Explorer la carte du Sénégal
-              </h2>
+                <h2
+                    id="map-title"
+                    className="mt-1 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl"
+                >
+                    Explorer la carte du Sénégal
+                </h2>
 
-              <p className="mt-1.5 max-w-2xl text-sm leading-5 text-slate-600">
-                Choisissez un indicateur et une année dans les filtres,
-                puis sélectionnez une région pour consulter les détails
-                disponibles.
-              </p>
+                <p className="mt-1.5 max-w-2xl text-sm leading-5 text-slate-600">
+                    Choisissez un indicateur et une année dans les filtres,
+                    puis sélectionnez une région pour consulter les détails
+                    disponibles.
+                </p>
+                </div>
+
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600">
+                Carte interactive · Données par région
+                </span>
             </div>
 
-            <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600">
-              Carte interactive · Données par région
-            </span>
-          </div>
+            <DashboardMap embedded />
+            </section>
 
-          <DashboardMap embedded />
-        </section>
         </div>
+
+        <FAQSections />
       {/* </main> */}
     {/* </div> */}
     </>
