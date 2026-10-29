@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import heroImage from "../assets/hero.png";
 import DashboardMap from "./DashboardMap";
 import BrandSection from "../components/BrandSection";
+import ServicesSection from "../components/ServicesSection";
 
 interface Destination {
   title: string;
@@ -115,12 +116,15 @@ function DestinationCard({ destination }: DestinationCardProps) {
 
 function DashboardMain() {
   return (
-    <div className="overflow-x-clip bg-[#f8faf6] text-slate-900">
-      <main className="mx-auto w-full max-w-[1440px] space-y-10 px-5 py-7 sm:px-8 sm:py-10">
+    // <div className="overflow-x-clip bg-[#f8faf6] text-slate-900">
+    <>
+      {/* <main className="mx-auto w-full max-w-[1440px] space-y-10 px-5 py-7 sm:px-8 sm:py-10"> */}
         {/* Section principale */}
         <BrandSection />
+        <ServicesSection />
 
         {/* Accès rapide */}
+        <div className="mx-auto w-full max-w-[1440px] space-y-10 px-5 py-7 sm:px-8 sm:py-10">
         <section aria-labelledby="services-title">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
             <div>
@@ -183,8 +187,10 @@ function DashboardMain() {
 
           <DashboardMap embedded />
         </section>
-      </main>
-    </div>
+        </div>
+      {/* </main> */}
+    {/* </div> */}
+    </>
   );
 }
 
