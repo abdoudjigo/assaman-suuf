@@ -1,0 +1,436 @@
+
+/* ========================================
+   ASSAMAN-SUUF — FOOTER
+======================================== */
+
+.siteFooter {
+  --footer-bg: #10251c;
+  --footer-surface: #183328;
+  --footer-text: #e8f0e9;
+  --footer-muted: #a8b9ad;
+  --footer-accent: #9acb70;
+  --footer-border: rgba(255, 255, 255, 0.12);
+
+  background-color: var(--footer-bg);
+  color: var(--footer-text);
+  font-family: inherit;
+  width: 100%;
+}
+
+/* Liens généraux */
+
+.siteFooter a {
+  color: inherit;
+  text-decoration: none;
+  transition:
+    color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.siteFooter a:hover {
+  color: var(--footer-accent);
+}
+
+.siteFooter a:focus-visible,
+.siteFooter button:focus-visible,
+.siteFooter input:focus-visible,
+.siteFooter textarea:focus-visible {
+  outline: 2px solid var(--footer-accent);
+  outline-offset: 3px;
+}
+
+/* ========================================
+   SECTION HAUTE : PRÉSENTATION + CONTACT
+======================================== */
+
+.footerTop {
+  padding: 64px 7% 56px;
+  border-bottom: 1px solid var(--footer-border);
+}
+
+.footerContact {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: clamp(40px, 7vw, 100px);
+  max-width: 1400px;
+  margin: 0 auto;
+  align-items: start;
+}
+
+/* Présentation de la marque */
+
+.footerBrand {
+  max-width: 560px;
+}
+
+.footerLogo {
+  display: inline-block;
+  margin-bottom: 20px;
+  color: #ffffff !important;
+  font-size: clamp(1.7rem, 3vw, 2.2rem);
+  font-weight: 800;
+  letter-spacing: -0.8px;
+}
+
+.footerBrand p,
+.footerContactForm > p {
+  color: var(--footer-muted);
+  font-size: 0.96rem;
+  line-height: 1.85;
+  margin: 0 0 22px;
+}
+
+.footerCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--footer-accent) !important;
+  font-weight: 600;
+  font-size: 0.94rem;
+}
+
+.footerCta:hover {
+  opacity: 0.8;
+}
+
+/* ========================================
+   TITRES
+======================================== */
+
+.footerTitle {
+  margin: 0 0 22px;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+/* ========================================
+   FORMULAIRE DE CONTACT
+======================================== */
+
+.footerContactForm {
+  width: 100%;
+  max-width: 500px;
+}
+
+.footerContactForm > p {
+  margin-bottom: 24px;
+  font-size: 0.9rem;
+}
+
+.footerForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.footerFormField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.footerFormField label {
+  color: var(--footer-text);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.footerForm input,
+.footerForm textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 15px;
+  border: 1px solid var(--footer-border);
+  border-radius: 8px;
+  background-color: var(--footer-surface);
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.9rem;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.footerForm input::placeholder,
+.footerForm textarea::placeholder {
+  color: #91a69a;
+}
+
+.footerForm input:hover,
+.footerForm textarea:hover {
+  border-color: rgba(154, 203, 112, 0.5);
+}
+
+.footerForm input:focus,
+.footerForm textarea:focus {
+  border-color: var(--footer-accent);
+  background-color: #1b3a2c;
+  box-shadow: 0 0 0 3px rgba(154, 203, 112, 0.12);
+  outline: none;
+}
+
+.footerForm textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.footerSubmit {
+  align-self: flex-start;
+  padding: 13px 24px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background-color: var(--footer-accent);
+  color: #10251c;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.footerSubmit:hover {
+  background-color: #b0dc8a;
+  transform: translateY(-2px);
+}
+
+.footerSubmit:active {
+  transform: translateY(0);
+}
+
+/* ========================================
+   SECTION MILIEU : NAVIGATION
+======================================== */
+
+.footerMiddle {
+  padding: 52px 7%;
+  border-bottom: 1px solid var(--footer-border);
+}
+
+.footerNavigation {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 36px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.footerNavColumn {
+  min-width: 0;
+}
+
+.footerNavColumn .footerTitle {
+  margin-bottom: 22px;
+  font-size: 0.95rem;
+}
+
+.footerNavColumn ul {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.footerNavColumn li {
+  margin: 0;
+  padding: 0;
+}
+
+.footerNavColumn li a {
+  display: inline-block;
+  color: var(--footer-muted);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.footerNavColumn li a:hover {
+  color: var(--footer-accent);
+  transform: translateX(3px);
+}
+
+/* ========================================
+   SECTION BASSE : COPYRIGHT + LÉGAL
+======================================== */
+
+.footerBottomSection {
+  padding: 22px 7%;
+}
+
+.footerBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.footerBottom > p {
+  margin: 0;
+  color: var(--footer-muted);
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.footerBottom nav {
+  min-width: 0;
+}
+
+.footerLegalLinks {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.footerLegalLinks a {
+  color: var(--footer-muted);
+  font-size: 0.82rem;
+}
+
+.footerLegalLinks a:hover {
+  color: var(--footer-accent);
+}
+
+/* ========================================
+   RESPONSIVE — TABLETTES
+======================================== */
+
+@media (max-width: 1024px) {
+  .footerTop,
+  .footerMiddle {
+    padding-left: 5%;
+    padding-right: 5%;
+  }
+
+  .footerContact {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr);
+    gap: 40px;
+  }
+
+  .footerNavigation {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 40px;
+    column-gap: 32px;
+  }
+
+  .footerBottomSection {
+    padding-left: 5%;
+    padding-right: 5%;
+  }
+}
+
+/* ========================================
+   RESPONSIVE — MOBILES
+======================================== */
+
+@media (max-width: 640px) {
+  .footerTop {
+    padding: 42px 6% 40px;
+  }
+
+  .footerContact {
+    grid-template-columns: 1fr;
+    gap: 38px;
+  }
+
+  .footerBrand {
+    max-width: none;
+  }
+
+  .footerLogo {
+    margin-bottom: 14px;
+  }
+
+  .footerTitle {
+    margin-bottom: 16px;
+  }
+
+  .footerContactForm {
+    max-width: none;
+  }
+
+  .footerSubmit {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .footerMiddle {
+    padding: 38px 6%;
+  }
+
+  .footerNavigation {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 36px 22px;
+  }
+
+  .footerNavColumn .footerTitle {
+    font-size: 0.9rem;
+    margin-bottom: 17px;
+  }
+
+  .footerNavColumn ul {
+    gap: 12px;
+  }
+
+  .footerNavColumn li a {
+    font-size: 0.83rem;
+  }
+
+  .footerBottomSection {
+    padding: 24px 6%;
+  }
+
+  .footerBottom {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .footerLegalLinks {
+    gap: 12px 18px;
+  }
+
+  .footerBottom > p,
+  .footerLegalLinks a {
+    font-size: 0.78rem;
+  }
+}
+
+/* Très petits écrans */
+
+@media (max-width: 360px) {
+  .footerNavigation {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .footerLegalLinks {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+
+/* Respect des préférences d'accessibilité */
+
+@media (prefers-reduced-motion: reduce) {
+  .siteFooter *,
+  .siteFooter *::before,
+  .siteFooter *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    transform: none;
+  }
+}
